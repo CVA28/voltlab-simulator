@@ -16,7 +16,7 @@
         <span class="text-cyan-400 font-bold text-lg">⚡</span>
       </div>
       <div>
-        <h1 class="font-bold text-sm tracking-wider text-cyan-300">VOLTLAB <span class="text-[10px] bg-cyan-500/20 px-1.5 py-0.5 rounded text-cyan-300">MVP v1.1</span></h1>
+        <h1 class="font-bold text-sm tracking-wider text-cyan-300">VOLTLAB <span class="text-[10px] bg-cyan-500/20 px-1.5 py-0.5 rounded text-cyan-300">MVP v1.2</span></h1>
         <p class="text-[10px] text-slate-400 hidden sm:block">Virtual Circuit & Embedded Simulator</p>
       </div>
     </div>
@@ -62,10 +62,10 @@
       </div>
     </aside>
 
-    <!-- CENTER CIRCUIT CANVAS -->
-    <main id="canvas-container" class="flex-1 relative bg-grid overflow-auto">
+    <!-- CENTER CIRCUIT CANVAS (touch-none ensures instant mobile tap response) -->
+    <main id="canvas-container" class="flex-1 relative bg-grid overflow-hidden touch-none">
       <!-- Floating Top-Left Action Buttons -->
-      <div class="fixed md:absolute top-16 md:top-3 left-3 z-20 flex gap-2">
+      <div class="absolute top-3 left-3 z-20 flex gap-2">
         <button id="open-palette" class="md:hidden px-3 py-1.5 rounded-lg bg-slate-900/90 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-lg backdrop-blur">
           + Parts
         </button>
@@ -75,17 +75,17 @@
       </div>
 
       <!-- Status Pill -->
-      <div id="sim-badge" class="fixed md:absolute top-16 md:top-3 right-3 z-20 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700 text-[11px] font-mono flex items-center gap-2 backdrop-blur">
+      <div id="sim-badge" class="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700 text-[11px] font-mono flex items-center gap-2 backdrop-blur">
         <span id="status-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
         <span id="status-text" class="text-slate-300">IDLE</span>
       </div>
 
-      <!-- Floating Zoom Controls (+ / Reset / -) -->
-      <div class="fixed md:absolute bottom-32 lg:bottom-4 right-3 z-20 flex items-center bg-slate-900/95 border border-slate-700 rounded-xl shadow-xl backdrop-blur overflow-hidden">
+      <!-- Floating Zoom & Pan Reset Controls -->
+      <div class="absolute bottom-3 right-3 z-20 flex items-center bg-slate-900/95 border border-slate-700 rounded-xl shadow-xl backdrop-blur overflow-hidden">
         <button id="btn-zoom-out" title="Zoom Out" class="px-3 py-2 text-cyan-300 hover:bg-slate-800 active:bg-slate-700 font-bold text-sm border-r border-slate-800">
           −
         </button>
-        <button id="btn-zoom-reset" title="Reset Zoom" class="px-2.5 py-2 text-[11px] font-mono text-slate-200 hover:bg-slate-800 active:bg-slate-700">
+        <button id="btn-zoom-reset" title="Reset View" class="px-2.5 py-2 text-[11px] font-mono text-slate-200 hover:bg-slate-800 active:bg-slate-700">
           100%
         </button>
         <button id="btn-zoom-in" title="Zoom In" class="px-3 py-2 text-cyan-300 hover:bg-slate-800 active:bg-slate-700 font-bold text-sm border-l border-slate-800">
@@ -93,17 +93,17 @@
         </button>
       </div>
 
-      <!-- Zoomable Circuit Stage (1400x1000 virtual board) -->
-      <div id="zoom-stage" class="relative w-[1400px] h-[1000px] origin-top-left transition-transform duration-100">
+      <!-- Pan + Zoom Stage -->
+      <div id="zoom-stage" class="relative w-[1600px] h-[1200px] origin-top-left">
         <!-- SVG Layer for Wires -->
         <svg id="wire-layer" class="absolute inset-0 w-full h-full z-10"></svg>
 
         <!-- HTML Layer for Interactive Components -->
-        <div id="component-layer" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></div>
+        <div id="component-layer" class="absolute inset-0 w-full h-full z-20 pointer-events-none"></div>
       </div>
 
       <!-- Helper Hint -->
-      <div class="fixed md:absolute bottom-32 lg:bottom-4 left-3 z-20 text-[10px] text-slate-400 bg-slate-900/85 px-2.5 py-1 rounded-lg border border-slate-800 pointer-events-none">
+      <div class="absolute bottom-3 left-3 z-20 text-[10px] text-slate-400 bg-slate-900/85 px-2.5 py-1 rounded-lg border border-slate-800 pointer-events-none">
         Tap <span class="text-cyan-400 font-bold">Pin → Pin</span> to wire • Tap <span class="text-rose-400 font-bold">Wire</span> to delete
       </div>
     </main>
