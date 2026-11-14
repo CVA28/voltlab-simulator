@@ -3,43 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VoltLab — Virtual Electronics Studio</title>
+  <title>VoltLab — Virtual Electronics & MCU Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="bg-slate-950 text-slate-100 h-screen w-screen overflow-hidden flex flex-col select-none font-sans">
 
   <!-- TOP TOOLBAR -->
-  <header class="h-14 bg-slate-900/90 border-b border-slate-800 px-3 flex items-center justify-between z-30 backdrop-blur-md shrink-0">
+  <header class="h-14 bg-slate-900/95 border-b border-slate-800 px-3 flex items-center justify-between z-30 backdrop-blur-md shrink-0">
     <div class="flex items-center gap-2">
       <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.4)]">
         <span class="text-cyan-400 font-bold text-lg">⚡</span>
       </div>
       <div>
-        <h1 class="font-bold text-sm tracking-wider text-cyan-300">VOLTLAB <span class="text-[10px] bg-cyan-500/20 px-1.5 py-0.5 rounded text-cyan-300">MVP v1.2</span></h1>
-        <p class="text-[10px] text-slate-400 hidden sm:block">Virtual Circuit & Embedded Simulator</p>
+        <h1 class="font-bold text-sm tracking-wider text-cyan-300">VOLTLAB <span class="text-[10px] bg-purple-500/25 border border-purple-400/40 px-1.5 py-0.5 rounded text-purple-300">PHASE 2</span></h1>
+        <p class="text-[10px] text-slate-400 hidden sm:block">Circuit & Microcontroller Simulator</p>
       </div>
     </div>
 
     <!-- Wire Color Picker -->
     <div class="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700">
-      <span class="text-[10px] text-slate-400 mr-1 hidden sm:inline">WIRE:</span>
-      <button data-color="#ef4444" class="wire-color-btn w-5 h-5 rounded-full bg-red-500 ring-2 ring-white scale-110 transition"></button>
-      <button data-color="#3b82f6" class="wire-color-btn w-5 h-5 rounded-full bg-blue-500 opacity-70 hover:opacity-100 transition"></button>
-      <button data-color="#22c55e" class="wire-color-btn w-5 h-5 rounded-full bg-green-500 opacity-70 hover:opacity-100 transition"></button>
-      <button data-color="#eab308" class="wire-color-btn w-5 h-5 rounded-full bg-yellow-400 opacity-70 hover:opacity-100 transition"></button>
-      <button data-color="#94a3b8" class="wire-color-btn w-5 h-5 rounded-full bg-slate-400 opacity-70 hover:opacity-100 transition"></button>
+      <button data-color="#ef4444" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500 ring-2 ring-white scale-110 transition"></button>
+      <button data-color="#3b82f6" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-500 opacity-70 hover:opacity-100 transition"></button>
+      <button data-color="#22c55e" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-green-500 opacity-70 hover:opacity-100 transition"></button>
+      <button data-color="#eab308" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-yellow-400 opacity-70 hover:opacity-100 transition"></button>
     </div>
 
     <!-- Simulation Controls -->
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5">
+      <button id="btn-toggle-code" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/50 text-indigo-200 font-bold text-xs flex items-center gap-1 transition">
+        <span>&lt;/&gt;</span> Code
+      </button>
       <button id="btn-run" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition active:scale-95">
         <span>▶</span> RUN
       </button>
       <button id="btn-stop" class="hidden px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center gap-1 shadow-[0_0_15px_rgba(244,63,94,0.5)] transition active:scale-95">
         <span>■</span> STOP
       </button>
-      <button id="btn-clear" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition">
+      <button id="btn-clear" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition">
         Clear
       </button>
     </div>
@@ -48,70 +49,62 @@
   <!-- MAIN WORKSPACE AREA -->
   <div class="flex-1 flex relative overflow-hidden">
 
-    <!-- LEFT COMPONENT PALETTE (Collapsible on Mobile) -->
-    <aside id="palette-drawer" class="w-60 bg-slate-900/95 border-r border-slate-800 flex flex-col z-30 transition-transform duration-300 absolute md:relative h-full -translate-x-full md:translate-x-0">
+    <!-- LEFT COMPONENT PALETTE -->
+    <aside id="palette-drawer" class="w-64 bg-slate-900/95 border-r border-slate-800 flex flex-col z-30 transition-transform duration-300 absolute md:relative h-full -translate-x-full md:translate-x-0">
       <div class="p-3 border-b border-slate-800 flex justify-between items-center">
         <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Components</span>
         <button id="close-palette" class="md:hidden text-slate-400 text-sm px-2">✕</button>
       </div>
       <div class="p-2">
-        <input id="search-comp" type="text" placeholder="Search parts..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-400" />
+        <input id="search-comp" type="text" placeholder="Search Pico, Arduino, LED..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-400" />
       </div>
-      <div id="component-list" class="flex-1 overflow-y-auto p-2 space-y-2">
-        <!-- Populated by JS -->
-      </div>
+      <div id="component-list" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
     </aside>
 
-    <!-- CENTER CIRCUIT CANVAS (touch-none ensures instant mobile tap response) -->
+    <!-- CENTER CIRCUIT CANVAS -->
     <main id="canvas-container" class="flex-1 relative bg-grid overflow-hidden touch-none">
       <!-- Floating Top-Left Action Buttons -->
-      <div class="absolute top-3 left-3 z-20 flex gap-2">
+      <div class="absolute top-3 left-3 z-20 flex flex-wrap gap-1.5">
         <button id="open-palette" class="md:hidden px-3 py-1.5 rounded-lg bg-slate-900/90 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-lg backdrop-blur">
           + Parts
         </button>
-        <button id="btn-demo" class="px-3 py-1.5 rounded-lg bg-slate-900/90 border border-purple-500/40 text-purple-300 text-xs font-semibold shadow-lg backdrop-blur hover:bg-slate-800">
-          Demo Circuit
+        <button id="btn-demo" class="px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-purple-500/40 text-purple-300 text-xs font-semibold shadow-lg backdrop-blur hover:bg-slate-800">
+          LED Demo
+        </button>
+        <button id="btn-pico-demo" class="px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-emerald-500/40 text-emerald-300 text-xs font-semibold shadow-lg backdrop-blur hover:bg-slate-800">
+          Pico Blink Demo
         </button>
       </div>
 
       <!-- Status Pill -->
-      <div id="sim-badge" class="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700 text-[11px] font-mono flex items-center gap-2 backdrop-blur">
+      <div id="sim-badge" class="absolute top-3 right-3 z-20 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-[10px] font-mono flex items-center gap-1.5 backdrop-blur">
         <span id="status-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
         <span id="status-text" class="text-slate-300">IDLE</span>
       </div>
 
       <!-- Floating Zoom & Pan Reset Controls -->
       <div class="absolute bottom-3 right-3 z-20 flex items-center bg-slate-900/95 border border-slate-700 rounded-xl shadow-xl backdrop-blur overflow-hidden">
-        <button id="btn-zoom-out" title="Zoom Out" class="px-3 py-2 text-cyan-300 hover:bg-slate-800 active:bg-slate-700 font-bold text-sm border-r border-slate-800">
-          −
-        </button>
-        <button id="btn-zoom-reset" title="Reset View" class="px-2.5 py-2 text-[11px] font-mono text-slate-200 hover:bg-slate-800 active:bg-slate-700">
-          100%
-        </button>
-        <button id="btn-zoom-in" title="Zoom In" class="px-3 py-2 text-cyan-300 hover:bg-slate-800 active:bg-slate-700 font-bold text-sm border-l border-slate-800">
-          +
-        </button>
+        <button id="btn-zoom-out" class="px-3 py-2 text-cyan-300 hover:bg-slate-800 active:bg-slate-700 font-bold text-sm border-r border-slate-800">−</button>
+        <button id="btn-zoom-reset" class="px-2.5 py-2 text-[11px] font-mono text-slate-200 hover:bg-slate-800 active:bg-slate-700">85%</button>
+        <button id="btn-zoom-in" class="px-3 py-2 text-cyan-300 hover:bg-slate-800 active:bg-slate-700 font-bold text-sm border-l border-slate-800">+</button>
       </div>
 
       <!-- Pan + Zoom Stage -->
       <div id="zoom-stage" class="relative w-[1600px] h-[1200px] origin-top-left">
-        <!-- SVG Layer for Wires -->
         <svg id="wire-layer" class="absolute inset-0 w-full h-full z-10"></svg>
-
-        <!-- HTML Layer for Interactive Components -->
         <div id="component-layer" class="absolute inset-0 w-full h-full z-20 pointer-events-none"></div>
       </div>
 
       <!-- Helper Hint -->
-      <div class="absolute bottom-3 left-3 z-20 text-[10px] text-slate-400 bg-slate-900/85 px-2.5 py-1 rounded-lg border border-slate-800 pointer-events-none">
+      <div id="canvas-hint" class="absolute bottom-3 left-3 z-20 text-[10px] text-slate-300 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 pointer-events-none">
         Tap <span class="text-cyan-400 font-bold">Pin → Pin</span> to wire • Tap <span class="text-rose-400 font-bold">Wire</span> to delete
       </div>
     </main>
 
-    <!-- RIGHT INSPECTOR & DIAGNOSTICS PANEL (Desktop) -->
+    <!-- RIGHT INSPECTOR PANEL (Desktop) -->
     <aside class="w-72 bg-slate-900/95 border-l border-slate-800 hidden lg:flex flex-col z-20 shrink-0">
       <div class="p-3 border-b border-slate-800">
-        <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Live Telemetry & Diagnostics</span>
+        <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Live Telemetry & Inspector</span>
       </div>
       <div id="telemetry-panel" class="p-3 space-y-3 overflow-y-auto flex-1 text-xs">
         <div class="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700">
@@ -120,24 +113,54 @@
         </div>
         <div>
           <div class="text-slate-400 font-semibold mb-1.5">Circuit Validation Log</div>
-          <div id="console-log" class="space-y-1.5 font-mono text-[11px]">
-            <div class="text-slate-500">System initialized. Build a circuit and press RUN.</div>
-          </div>
+          <div id="console-log" class="space-y-1.5 font-mono text-[11px]"></div>
         </div>
       </div>
     </aside>
 
   </div>
 
-  <!-- BOTTOM MOBILE CONSOLE DRAWER -->
-  <div id="mobile-console" class="lg:hidden h-28 bg-slate-900 border-t border-slate-800 p-2.5 overflow-y-auto font-mono text-[11px] z-20 shrink-0">
+  <!-- SLIDE-UP CODE EDITOR & SERIAL MONITOR DRAWER -->
+  <section id="code-drawer" class="hidden h-72 bg-slate-900 border-t-2 border-indigo-500/60 flex flex-col z-30 shrink-0">
+    <div class="px-3 py-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold text-indigo-300">MCU CODE</span>
+        <select id="code-preset" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 focus:outline-none">
+          <option value="pico_blink">Pico MicroPython — Blink GP15</option>
+          <option value="pico_sos">Pico MicroPython — Fast SOS Pulse</option>
+          <option value="arduino_blink">Arduino C++ — Blink D13</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btn-code-run" class="px-2.5 py-1 rounded bg-emerald-500 text-slate-950 font-bold text-[11px]">▶ Upload & Run</button>
+        <button id="btn-close-code" class="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs">✕</button>
+      </div>
+    </div>
+
+    <div class="flex-1 flex flex-col sm:flex-row overflow-hidden">
+      <!-- Code Editor Textarea -->
+      <textarea id="code-editor" spellcheck="false" class="flex-1 bg-slate-950 text-emerald-300 font-mono text-xs p-3 resize-none focus:outline-none border-b sm:border-b-0 sm:border-r border-slate-800 leading-relaxed"></textarea>
+
+      <!-- Live Serial Monitor -->
+      <div class="h-28 sm:h-full sm:w-72 bg-black/80 p-2.5 flex flex-col font-mono text-[11px]">
+        <div class="flex justify-between items-center text-slate-400 border-b border-slate-800 pb-1 mb-1">
+          <span class="text-[10px] font-bold text-amber-400">SERIAL MONITOR (115200)</span>
+          <button id="btn-clear-serial" class="text-[10px] text-slate-500 hover:text-slate-300">Clear</button>
+        </div>
+        <div id="serial-output" class="flex-1 overflow-y-auto space-y-1 text-slate-300">
+          <div class="text-slate-500">Ready for microcontroller output...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOTTOM MOBILE DIAGNOSTICS BAR -->
+  <div id="mobile-console" class="lg:hidden h-24 bg-slate-900 border-t border-slate-800 p-2 overflow-y-auto font-mono text-[11px] z-20 shrink-0">
     <div class="flex justify-between items-center mb-1">
-      <span class="text-cyan-400 font-bold uppercase text-[10px]">Diagnostics & Live Readings</span>
+      <span class="text-cyan-400 font-bold uppercase text-[10px]">Live Telemetry</span>
       <span id="mobile-readings" class="text-emerald-400">0.00V | 0.0mA</span>
     </div>
-    <div id="mobile-log" class="space-y-1 text-slate-300">
-      <div>Tap "+ Parts" to add components. Tap any wire to delete it.</div>
-    </div>
+    <div id="mobile-log" class="space-y-1 text-slate-300"></div>
   </div>
 
   <script type="module" src="js/app.js"></script>
