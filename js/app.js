@@ -11,11 +11,16 @@ let pendingPin = null; // { instanceId, pinId }
 let selectedInstanceId = null;
 let isRunning = false;
 let idCounter = 1;
+let zoomLevel = 1.0;
 
 // DOM Elements
 const componentListEl = document.getElementById('component-list');
 const componentLayerEl = document.getElementById('component-layer');
 const wireLayerEl = document.getElementById('wire-layer');
+const zoomStageEl = document.getElementById('zoom-stage');
+const btnZoomIn = document.getElementById('btn-zoom-in');
+const btnZoomOut = document.getElementById('btn-zoom-out');
+const btnZoomReset = document.getElementById('btn-zoom-reset');
 const btnRun = document.getElementById('btn-run');
 const btnStop = document.getElementById('btn-stop');
 const btnClear = document.getElementById('btn-clear');
@@ -26,6 +31,17 @@ const consoleLogEl = document.getElementById('console-log');
 const mobileLogEl = document.getElementById('mobile-log');
 const mobileReadingsEl = document.getElementById('mobile-readings');
 const selectedInfoEl = document.getElementById('selected-info');
+
+// Zoom Controls
+function setZoom(newZoom) {
+  zoomLevel = Math.min(1.6, Math.max(0.5, Number(newZoom.toFixed(2))));
+  zoomStageEl.style.transform = `scale(${zoomLevel})`;
+  btnZoomReset.textContent = `${Math.round(zoomLevel * 100)}%`;
+}
+
+btnZoomIn.addEventListener('click', () => setZoom(zoomLevel + 0.15));
+btnZoomOut.addEventListener('click', () => setZoom(zoomLevel - 0.15));
+btnZoomReset.addEventListener('click', () => setZoom(1.0));
 
 // 1. Render Left Component Palette
 function renderPalette(filter = '') {
@@ -43,8 +59,7 @@ function renderPalette(filter = '') {
         <span class="text-cyan-400 text-lg font-bold">+</span>
       `;
       card.addEventListener('click', () => {
-        spawnComponent(comp.type, 80 + Math.random() * 120, 100 + Math.random() * 140);
-        // Close mobile drawer after adding
+        spawnComponent(comp.type, 60 + Math.random() * 100, 90 + Math.random() * 120);
         document.getElementById('palette-drawer').classList.add('-translate-x-full');
       });
       componentListEl.appendChild(card);
@@ -61,7 +76,7 @@ function spawnComponent(type, x, y, extra = {}) {
     type,
     x: Math.round(x),
     y: Math.round(y),
-    closed: false, // For switches
+    closed: false,
     ...extra
   };
   instances.push(instance);
@@ -154,7 +169,7 @@ function renderWorkspace(simResult = null) {
     const state = simResult?.componentStates?.[inst.id];
 
     const el = document.createElement('div');
-    el.className = `circuit-node ${selectedInstanceId === inst.id ? 'selected' : ''}`;
+    el.className = `circuit-node pointer-events-auto ${selectedInstanceId === inst.id ? 'selected' : ''}`;
     el.style.left = `${inst.x}px`;
     el.style.top = `${inst.y}px`;
     el.style.width = `${spec.width}px`;
@@ -171,7 +186,6 @@ function renderWorkspace(simResult = null) {
       pinEl.style.backgroundColor = pin.color;
       pinEl.title = `${spec.name} — ${pin.label}`;
 
-      // Handle Pin Tap / Click for Wiring
       pinEl.addEventListener('pointerdown', e => {
         e.stopPropagation();
         handlePinClick(inst.id, pin.id);
@@ -180,7 +194,7 @@ function renderWorkspace(simResult = null) {
       el.appendChild(pinEl);
     });
 
-    // Dragging & Tapping Component
+    // Dragging & Tapping Component (scaled by zoomLevel)
     let startX, startY, origX, origY, moved = false;
 
     el.addEventListener('pointerdown', e => {
@@ -196,11 +210,11 @@ function renderWorkspace(simResult = null) {
       moved = false;
 
       const onPointerMove = moveEvent => {
-        const dx = moveEvent.clientX - startX;
-        const dy = moveEvent.clientY - startY;
+        const dx = (moveEvent.clientX - startX) / zoomLevel;
+        const dy = (moveEvent.clientY - startY) / zoomLevel;
         if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
-        inst.x = Math.max(10, origX + dx);
-        inst.y = Math.max(10, origY + dy);
+        inst.x = Math.max(10, Math.round(origX + dx));
+        inst.y = Math.max(10, Math.round(origY + dy));
         el.style.left = `${inst.x}px`;
         el.style.top = `${inst.y}px`;
         renderWires(simResult);
@@ -210,7 +224,6 @@ function renderWorkspace(simResult = null) {
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
 
-        // If tapped without dragging on a switch, toggle it!
         if (!moved && inst.type === 'switch_toggle') {
           inst.closed = !inst.closed;
           if (isRunning) runSimulation();
@@ -239,14 +252,12 @@ function handlePinClick(instanceId, pinId) {
     return;
   }
 
-  // Cancel if same pin tapped twice
   if (pendingPin.instanceId === instanceId && pendingPin.pinId === pinId) {
     pendingPin = null;
     renderWorkspace();
     return;
   }
 
-  // Prevent wiring two pins on the exact same component
   if (pendingPin.instanceId === instanceId) {
     appendLog('warn', `Cannot connect a component to itself.`);
     pendingPin = null;
@@ -266,7 +277,7 @@ function handlePinClick(instanceId, pinId) {
   else renderWorkspace();
 }
 
-// 6. Render Curved SVG Wires with Live Current Animation
+// 6. Render Curved SVG Wires with Wide Tap-to-Delete Hitboxes
 function renderWires(simResult = null) {
   wireLayerEl.innerHTML = '';
 
@@ -283,25 +294,44 @@ function renderWires(simResult = null) {
     const x2 = toInst.x + toPin.x;
     const y2 = toInst.y + toPin.y;
 
-    // Smooth Bezier curve
     const cx1 = x1 + (x2 - x1) * 0.4;
     const cy1 = y1;
     const cx2 = x2 - (x2 - x1) * 0.4;
     const cy2 = y2;
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     const d = `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
-    path.setAttribute('d', d);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', w.color);
-    path.setAttribute('stroke-width', '3.5');
-    path.setAttribute('stroke-linecap', 'round');
+
+    // Visible colored wire
+    const visiblePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    visiblePath.setAttribute('d', d);
+    visiblePath.setAttribute('fill', 'none');
+    visiblePath.setAttribute('stroke', w.color);
+    visiblePath.setAttribute('stroke-width', '3.5');
+    visiblePath.setAttribute('stroke-linecap', 'round');
+    visiblePath.style.pointerEvents = 'none';
 
     if (isRunning && simResult?.activeWires?.has(w.id)) {
-      path.classList.add('wire-energized');
+      visiblePath.classList.add('wire-energized');
     }
 
-    wireLayerEl.appendChild(path);
+    // Invisible 24px wide touch hitbox for easy finger tapping
+    const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hitPath.setAttribute('d', d);
+    hitPath.setAttribute('fill', 'none');
+    hitPath.setAttribute('stroke', 'transparent');
+    hitPath.setAttribute('stroke-width', '24');
+    hitPath.style.cursor = 'pointer';
+    hitPath.style.pointerEvents = 'stroke';
+
+    hitPath.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      wires = wires.filter(item => item.id !== w.id);
+      appendLog('warn', 'Wire removed.');
+      if (isRunning) runSimulation();
+      else renderWorkspace();
+    });
+
+    wireLayerEl.appendChild(visiblePath);
+    wireLayerEl.appendChild(hitPath);
   });
 }
 
@@ -311,14 +341,13 @@ function runSimulation() {
   btnRun.classList.add('hidden');
   btnStop.classList.remove('hidden');
   statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
-  statusText.textContent = 'SIMULATION LIVE';
+  statusText.textContent = 'LIVE';
   statusText.className = 'text-emerald-400 font-bold';
 
   const result = engine.evaluate(instances, wires);
   renderWorkspace(result);
   renderLogs(result.logs);
 
-  // Update mobile telemetry summary
   const activeLed = Object.values(result.componentStates).find(s => s.lit);
   if (result.shortCircuit) {
     mobileReadingsEl.textContent = 'SHORT CIRCUIT!';
@@ -392,10 +421,10 @@ function loadDemoCircuit() {
   wires = [];
   idCounter = 1;
 
-  const bat = spawnComponent('battery_9v', 30, 90);
-  const sw = spawnComponent('switch_toggle', 175, 65, { closed: true });
-  const res = spawnComponent('resistor_220', 175, 165);
-  const led = spawnComponent('led_cyan', 310, 105);
+  const bat = spawnComponent('battery_9v', 25, 110);
+  const sw = spawnComponent('switch_toggle', 175, 75, { closed: true });
+  const res = spawnComponent('resistor_220', 175, 175);
+  const led = spawnComponent('led_cyan', 315, 115);
 
   wires.push(
     { id: 'w1', from: { instanceId: bat.id, pinId: 'VCC' }, to: { instanceId: sw.id, pinId: 'IN' }, color: '#ef4444' },
@@ -440,4 +469,4 @@ document.getElementById('search-comp').addEventListener('input', e => renderPale
 // Initialize
 renderPalette();
 loadDemoCircuit();
-      
+                         
