@@ -11,9 +11,57 @@ let pendingPin = null;
 let selectedInstanceId = null;
 let isRunning = false;
 let idCounter = 1;
-let zoomLevel = 1.0;
+let zoomLevel = 0.85;
 let panX = 0;
 let panY = 0;
+let gpioStates = {}; // instanceId -> { GP15: true/false, D13: true/false }
+let codeTimers = [];
+
+// Code Presets
+const CODE_PRESETS = {
+  pico_blink: `# Raspberry Pi Pico — MicroPython Blink
+from machine import Pin
+import time
+
+led = Pin(15, Pin.OUT)
+
+while True:
+    led.value(1)
+    print("GP15 -> HIGH (3.3V)")
+    time.sleep(0.8)
+    led.value(0)
+    print("GP15 -> LOW (0.0V)")
+    time.sleep(0.8)`,
+
+  pico_sos: `# Raspberry Pi Pico — Fast Pulse
+from machine import Pin
+import time
+
+led = Pin(15, Pin.OUT)
+
+while True:
+    led.value(1)
+    print("PULSE ON!")
+    time.sleep(0.3)
+    led.value(0)
+    print("PULSE OFF")
+    time.sleep(0.3)`,
+
+  arduino_blink: `// Arduino Uno R3 — Blink Sketch
+void setup() {
+  Serial.begin(115200);
+  pinMode(13, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  Serial.println("D13 -> HIGH (5.0V)");
+  delay(800);
+  digitalWrite(13, LOW);
+  Serial.println("D13 -> LOW (0.0V)");
+  delay(800);
+}`
+};
 
 // DOM Elements
 const componentListEl = document.getElementById('component-list');
@@ -28,12 +76,19 @@ const btnRun = document.getElementById('btn-run');
 const btnStop = document.getElementById('btn-stop');
 const btnClear = document.getElementById('btn-clear');
 const btnDemo = document.getElementById('btn-demo');
+const btnPicoDemo = document.getElementById('btn-pico-demo');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
 const consoleLogEl = document.getElementById('console-log');
 const mobileLogEl = document.getElementById('mobile-log');
 const mobileReadingsEl = document.getElementById('mobile-readings');
 const selectedInfoEl = document.getElementById('selected-info');
+const codeDrawerEl = document.getElementById('code-drawer');
+const codeEditorEl = document.getElementById('code-editor');
+const codePresetEl = document.getElementById('code-preset');
+const serialOutputEl = document.getElementById('serial-output');
+
+codeEditorEl.value = CODE_PRESETS.pico_blink;
 
 function updateStageTransform() {
   zoomStageEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
@@ -41,22 +96,29 @@ function updateStageTransform() {
 }
 
 function setZoom(newZoom) {
-  zoomLevel = Math.min(1.6, Math.max(0.5, Number(newZoom.toFixed(2))));
+  zoomLevel = Math.min(1.5, Math.max(0.5, Number(newZoom.toFixed(2))));
   updateStageTransform();
 }
 
 btnZoomIn.addEventListener('click', () => setZoom(zoomLevel + 0.15));
 btnZoomOut.addEventListener('click', () => setZoom(zoomLevel - 0.15));
 btnZoomReset.addEventListener('click', () => {
-  zoomLevel = 1.0;
+  zoomLevel = 0.85;
   panX = 0;
   panY = 0;
   updateStageTransform();
 });
 
-// Single-Finger Drag on Empty Grid to Pan
+// Pan or Cancel Pending Pin when tapping empty grid
 canvasContainerEl.addEventListener('pointerdown', e => {
   if (e.target.closest('.circuit-node') || e.target.closest('.wire-hit') || e.target.closest('button')) return;
+
+  if (pendingPin) {
+    pendingPin = null;
+    appendLog('info', 'Pin selection cancelled.');
+    renderWorkspace();
+  }
+
   const startX = e.clientX;
   const startY = e.clientY;
   const origPanX = panX;
@@ -75,7 +137,7 @@ canvasContainerEl.addEventListener('pointerdown', e => {
   window.addEventListener('pointerup', onUp);
 });
 
-// 1. Render Left Component Palette
+// 1. Render Component Palette
 function renderPalette(filter = '') {
   componentListEl.innerHTML = '';
   Object.values(COMPONENT_CATALOG)
@@ -112,7 +174,7 @@ function spawnComponent(type, x, y, extra = {}) {
   };
   instances.push(instance);
   renderWorkspace();
-  if (isRunning) runSimulation();
+  if (isRunning) evaluateCircuit();
   return instance;
 }
 
@@ -122,29 +184,66 @@ function getComponentGraphic(inst, state) {
   const isLit = state?.lit;
   const isBlown = state?.blown;
 
+  // Raspberry Pi Pico RP2040
+  if (inst.type === 'pico_rp2040') {
+    const gp15High = gpioStates[inst.id]?.GP15;
+    return `
+      <svg viewBox="0 0 165 86" class="w-full h-full drop-shadow-xl overflow-visible">
+        <!-- Green PCB -->
+        <rect x="6" y="4" width="153" height="78" rx="5" fill="#065f46" stroke="#10b981" stroke-width="2"/>
+        <!-- Micro-USB Port on Left -->
+        <rect x="0" y="27" width="16" height="32" rx="2" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>
+        <!-- RP2040 Silicon Chip -->
+        <rect x="64" y="25" width="36" height="36" rx="3" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+        <text x="69" y="46" fill="#94a3b8" font-family="monospace" font-size="8" font-weight="bold">RP2040</text>
+        <!-- White BOOTSEL Button -->
+        <rect x="30" y="16" width="16" height="12" rx="2" fill="#f8fafc" stroke="#94a3b8" stroke-width="1"/>
+        <!-- Onboard Green LED -->
+        <circle cx="38" cy="54" r="4" fill="${gp15High ? '#4ade80' : '#14532d'}" style="${gp15High ? 'filter: drop-shadow(0 0 8px #4ade80);' : ''}"/>
+        <!-- Pin Labels -->
+        <text x="122" y="21" fill="#fde047" font-family="monospace" font-size="8" font-weight="bold">3V3</text>
+        <text x="122" y="46" fill="#86efac" font-family="monospace" font-size="8" font-weight="bold">GP15</text>
+        <text x="122" y="71" fill="#86efac" font-family="monospace" font-size="8" font-weight="bold">GP14</text>
+        <text x="12" y="71" fill="#93c5fd" font-family="monospace" font-size="8" font-weight="bold">GND</text>
+        <text x="54" y="16" fill="#ecfdf5" font-family="sans-serif" font-size="8" font-weight="bold">RASPBERRY PI PICO</text>
+      </svg>
+    `;
+  }
+
+  // Arduino Uno R3
+  if (inst.type === 'arduino_uno') {
+    const d13High = gpioStates[inst.id]?.D13;
+    return `
+      <svg viewBox="0 0 180 115" class="w-full h-full drop-shadow-xl overflow-visible">
+        <!-- Blue Arduino PCB -->
+        <rect x="10" y="4" width="164" height="107" rx="6" fill="#0369a1" stroke="#38bdf8" stroke-width="2"/>
+        <!-- Silver USB-B Port -->
+        <rect x="0" y="18" width="24" height="28" rx="2" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>
+        <!-- Black Barrel Jack -->
+        <rect x="2" y="72" width="24" height="22" rx="2" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+        <!-- ATmega328P DIP Chip -->
+        <rect x="64" y="62" width="84" height="22" rx="2" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+        <!-- Onboard L (D13) & ON LEDs -->
+        <circle cx="72" cy="34" r="3.5" fill="${d13High ? '#fbbf24' : '#78350f'}" style="${d13High ? 'filter: drop-shadow(0 0 8px #fbbf24);' : ''}"/>
+        <circle cx="148" cy="34" r="3.5" fill="#22c55e" style="filter: drop-shadow(0 0 5px #22c55e);"/>
+        <text x="82" y="38" fill="#ffffff" font-family="sans-serif" font-weight="900" font-size="11">ARDUINO UNO</text>
+        <text x="116" y="16" fill="#bae6fd" font-family="monospace" font-size="8" font-weight="bold">D13</text>
+        <text x="148" y="16" fill="#bae6fd" font-family="monospace" font-size="8" font-weight="bold">D12</text>
+        <text x="90" y="104" fill="#fca5a5" font-family="monospace" font-size="8" font-weight="bold">5V</text>
+        <text x="122" y="104" fill="#93c5fd" font-family="monospace" font-size="8" font-weight="bold">GND</text>
+      </svg>
+    `;
+  }
+
   if (inst.type === 'battery_9v') {
     return `
       <svg viewBox="0 0 130 76" class="w-full h-full drop-shadow-xl overflow-visible">
-        <defs>
-          <linearGradient id="bat9Body" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#1e293b"/>
-            <stop offset="30%" stop-color="#0f172a"/>
-            <stop offset="100%" stop-color="#020617"/>
-          </linearGradient>
-          <linearGradient id="bat9Cap" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#f59e0b"/>
-            <stop offset="50%" stop-color="#d97706"/>
-            <stop offset="100%" stop-color="#92400e"/>
-          </linearGradient>
-        </defs>
         <rect x="114" y="17" width="14" height="14" rx="3" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>
         <polygon points="114,45 128,43 128,61 114,59" fill="#94a3b8" stroke="#475569" stroke-width="1.5"/>
-        <rect x="4" y="6" width="112" height="64" rx="8" fill="url(#bat9Body)" stroke="#334155" stroke-width="2"/>
-        <path d="M 86 6 H 108 A 8 8 0 0 1 116 14 V 62 A 8 8 0 0 1 108 70 H 86 Z" fill="url(#bat9Cap)"/>
+        <rect x="4" y="6" width="112" height="64" rx="8" fill="#0f172a" stroke="#334155" stroke-width="2"/>
+        <path d="M 86 6 H 108 A 8 8 0 0 1 116 14 V 62 A 8 8 0 0 1 108 70 H 86 Z" fill="#d97706"/>
         <text x="14" y="34" fill="#fbbf24" font-family="monospace" font-weight="900" font-size="16">9V</text>
-        <text x="14" y="52" fill="#e2e8f0" font-family="sans-serif" font-weight="800" font-size="11" letter-spacing="1">DURAVOLT</text>
-        <text x="95" y="28" fill="#451a03" font-weight="900" font-size="13">+</text>
-        <text x="96" y="56" fill="#451a03" font-weight="900" font-size="14">−</text>
+        <text x="14" y="52" fill="#e2e8f0" font-family="sans-serif" font-weight="800" font-size="11">DURAVOLT</text>
       </svg>
     `;
   }
@@ -152,20 +251,11 @@ function getComponentGraphic(inst, state) {
   if (inst.type === 'battery_1v5') {
     return `
       <svg viewBox="0 0 140 54" class="w-full h-full drop-shadow-xl overflow-visible">
-        <defs>
-          <linearGradient id="aaBody" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#334155"/>
-            <stop offset="40%" stop-color="#0f172a"/>
-            <stop offset="100%" stop-color="#020617"/>
-          </linearGradient>
-        </defs>
         <rect x="2" y="10" width="8" height="34" rx="2" fill="#94a3b8"/>
         <rect x="130" y="17" width="9" height="20" rx="3" fill="#e2e8f0"/>
-        <rect x="8" y="6" width="124" height="42" rx="6" fill="url(#aaBody)" stroke="#475569" stroke-width="1.5"/>
+        <rect x="8" y="6" width="124" height="42" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
         <rect x="94" y="6" width="36" height="42" rx="4" fill="#d97706"/>
         <text x="48" y="32" fill="#f8fafc" font-family="monospace" font-weight="800" font-size="14">1.5 V</text>
-        <text x="108" y="33" fill="#451a03" font-weight="900" font-size="16">+</text>
-        <text x="16" y="33" fill="#94a3b8" font-weight="900" font-size="16">−</text>
       </svg>
     `;
   }
@@ -175,16 +265,8 @@ function getComponentGraphic(inst, state) {
     return `
       <svg viewBox="0 0 132 82" class="w-full h-full drop-shadow-xl overflow-visible">
         <rect x="4" y="4" width="124" height="74" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="2"/>
-        <circle cx="14" cy="14" r="3" fill="#020617" stroke="#fbbf24" stroke-width="1.5"/>
-        <circle cx="118" cy="14" r="3" fill="#020617" stroke="#fbbf24" stroke-width="1.5"/>
         <rect x="46" y="22" width="40" height="34" rx="3" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
-        <rect x="54" y="14" width="24" height="8" fill="#cbd5e1"/>
-        <rect x="50" y="56" width="6" height="8" fill="#cbd5e1"/>
-        <rect x="63" y="56" width="6" height="8" fill="#cbd5e1"/>
-        <rect x="76" y="56" width="6" height="8" fill="#cbd5e1"/>
-        <rect x="26" y="30" width="10" height="18" rx="1" fill="#b45309" stroke="#fde68a" stroke-width="1"/>
-        <rect x="96" y="30" width="10" height="18" rx="1" fill="#b45309" stroke="#fde68a" stroke-width="1"/>
-        <circle cx="105" cy="64" r="4" fill="${active ? '#22c55e' : '#14532d'}" style="${active ? 'filter: drop-shadow(0 0 6px #22c55e);' : ''}"/>
+        <circle cx="105" cy="64" r="4" fill="${active ? '#22c55e' : '#14532d'}"/>
         <text x="48" y="42" fill="#e2e8f0" font-family="monospace" font-size="8" font-weight="bold">AMS1117</text>
         <text x="42" y="72" fill="#a7f3d0" font-family="monospace" font-size="9" font-weight="bold">3.3V OUT</text>
       </svg>
@@ -212,7 +294,7 @@ function getComponentGraphic(inst, state) {
         <rect x="8" y="34" width="108" height="26" rx="5" fill="#451a03" stroke="#92400e" stroke-width="2"/>
         <rect x="18" y="28" width="14" height="16" rx="2" fill="#f59e0b"/>
         <rect x="92" y="28" width="14" height="16" rx="2" fill="#f59e0b"/>
-        <g style="transform-origin: 25px 32px; transform: rotate(${bladeAngle}deg); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);">
+        <g style="transform-origin: 25px 32px; transform: rotate(${bladeAngle}deg); transition: transform 0.2s ease;">
           <rect x="23" y="28" width="84" height="7" rx="2" fill="#fbbf24" stroke="#b45309" stroke-width="1"/>
           <rect x="96" y="24" width="22" height="14" rx="5" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
         </g>
@@ -228,13 +310,9 @@ function getComponentGraphic(inst, state) {
     return `
       <svg viewBox="0 0 105 92" class="w-full h-full overflow-visible" style="${glowFilter}">
         <rect x="35" y="54" width="35" height="24" rx="4" fill="#d97706" stroke="#78350f" stroke-width="1.5"/>
-        <line x1="35" y1="61" x2="70" y2="61" stroke="#78350f" stroke-width="2"/>
-        <line x1="35" y1="69" x2="70" y2="69" stroke="#78350f" stroke-width="2"/>
         <polyline points="0,68 35,68" fill="none" stroke="#94a3b8" stroke-width="3"/>
         <polyline points="70,68 105,68" fill="none" stroke="#94a3b8" stroke-width="3"/>
         <circle cx="52.5" cy="32" r="26" fill="${isLit ? 'rgba(254, 240, 138, 0.85)' : 'rgba(148, 163, 184, 0.18)'}" stroke="#cbd5e1" stroke-width="1.8"/>
-        <line x1="45" y1="54" x2="45" y2="34" stroke="#94a3b8" stroke-width="1.5"/>
-        <line x1="60" y1="54" x2="60" y2="34" stroke="#94a3b8" stroke-width="1.5"/>
         <path d="M 45 34 Q 49 24 52.5 34 Q 56 24 60 34" fill="none" stroke="${isLit ? '#ffffff' : '#64748b'}" stroke-width="${isLit ? '3' : '1.8'}"/>
       </svg>
     `;
@@ -259,7 +337,7 @@ function getComponentGraphic(inst, state) {
   return '';
 }
 
-// 4. Render All Components & Pins
+// 4. Render All Components & Large Touch Pins
 function renderWorkspace(simResult = null) {
   componentLayerEl.innerHTML = '';
 
@@ -324,7 +402,7 @@ function renderWorkspace(simResult = null) {
 
         if (!moved && inst.type === 'switch_toggle') {
           inst.closed = !inst.closed;
-          if (isRunning) runSimulation();
+          if (isRunning) evaluateCircuit();
           else renderWorkspace();
         } else if (moved) {
           renderWorkspace(simResult);
@@ -345,7 +423,8 @@ function renderWorkspace(simResult = null) {
 function handlePinClick(instanceId, pinId) {
   if (!pendingPin) {
     pendingPin = { instanceId, pinId };
-    appendLog('info', `Pin selected. Tap a destination pin to complete wire...`);
+    const inst = instances.find(i => i.id === instanceId);
+    appendLog('info', `Selected ${COMPONENT_CATALOG[inst.type].name} (${pinId}). Tap destination pin...`);
     renderWorkspace();
     return;
   }
@@ -357,7 +436,7 @@ function handlePinClick(instanceId, pinId) {
   }
 
   if (pendingPin.instanceId === instanceId) {
-    appendLog('warn', `Cannot connect a component to itself.`);
+    appendLog('warn', 'Cannot wire a component to itself.');
     pendingPin = null;
     renderWorkspace();
     return;
@@ -371,7 +450,7 @@ function handlePinClick(instanceId, pinId) {
   });
 
   pendingPin = null;
-  if (isRunning) runSimulation();
+  if (isRunning) evaluateCircuit();
   else renderWorkspace();
 }
 
@@ -402,8 +481,8 @@ function renderWires(simResult = null) {
     visiblePath.setAttribute('d', d);
     visiblePath.setAttribute('fill', 'none');
     visiblePath.setAttribute('stroke', w.color);
-    visiblePath.setAttribute('stroke-width', '4');
-    visiblePath.setAttribute('stroke-linecap', 'round');
+    visiblePath.setAttribute('stroke-width', '4'
+                             visiblePath.setAttribute('stroke-linecap', 'round');
     visiblePath.style.pointerEvents = 'none';
 
     if (isRunning && simResult?.activeWires?.has(w.id)) {
@@ -423,7 +502,7 @@ function renderWires(simResult = null) {
       e.stopPropagation();
       wires = wires.filter(item => item.id !== w.id);
       appendLog('warn', 'Wire removed.');
-      if (isRunning) runSimulation();
+      if (isRunning) evaluateCircuit();
       else renderWorkspace();
     };
 
@@ -435,16 +514,57 @@ function renderWires(simResult = null) {
   });
 }
 
-// 7. Execute Simulation & Update Logs
-function runSimulation() {
-  isRunning = true;
-  btnRun.classList.add('hidden');
-  btnStop.classList.remove('hidden');
-  statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
-  statusText.textContent = 'LIVE';
-  statusText.className = 'text-emerald-400 font-bold';
+// 7. Microcontroller Code Interpreter & Timer Loop
+function stopCodeTimers() {
+  codeTimers.forEach(t => clearInterval(t));
+  codeTimers = [];
+}
 
-  const result = engine.evaluate(instances, wires);
+function appendSerial(msg) {
+  const line = document.createElement('div');
+  line.textContent = `> ${msg}`;
+  serialOutputEl.appendChild(line);
+  serialOutputEl.scrollTop = serialOutputEl.scrollHeight;
+}
+
+function startMcuExecution() {
+  stopCodeTimers();
+  const code = codeEditorEl.value;
+  const mcus = instances.filter(i => i.type === 'pico_rp2040' || i.type === 'arduino_uno');
+  if (mcus.length === 0) return;
+
+  // Parse delay/sleep interval in ms (defaults to 800ms)
+  const sleepMatch = code.match(/time\.sleep\(([\d.]+)\)/);
+  const delayMatch = code.match(/delay\((\d+)\)/);
+  const intervalMs = sleepMatch ? parseFloat(sleepMatch[1]) * 1000 : delayMatch ? parseInt(delayMatch[1], 10) : 800;
+
+  // Detect target pin (GP15, GP14, D13, D12)
+  const pinMatch = code.match(/Pin\((\d+)/) || code.match(/digitalWrite\((\d+)/);
+  const pinNum = pinMatch ? pinMatch[1] : '15';
+
+  let toggleState = true;
+  serialOutputEl.innerHTML = '';
+  appendSerial('Booting microcontroller firmware...');
+
+  const tick = () => {
+    mcus.forEach(mcu => {
+      if (!gpioStates[mcu.id]) gpioStates[mcu.id] = {};
+      const pinKey = mcu.type === 'pico_rp2040' ? `GP${pinNum}` : `D${pinNum}`;
+      gpioStates[mcu.id][pinKey] = toggleState;
+      appendSerial(`${pinKey} = ${toggleState ? 'HIGH (1)' : 'LOW (0)'}`);
+    });
+    evaluateCircuit();
+    toggleState = !toggleState;
+  };
+
+  tick();
+  const timer = setInterval(tick, Math.max(250, intervalMs));
+  codeTimers.push(timer);
+}
+
+// 8. Evaluate Electrical State
+function evaluateCircuit() {
+  const result = engine.evaluate(instances, wires, gpioStates);
   renderWorkspace(result);
   renderLogs(result.logs);
 
@@ -461,8 +581,22 @@ function runSimulation() {
   }
 }
 
+function runSimulation() {
+  isRunning = true;
+  btnRun.classList.add('hidden');
+  btnStop.classList.remove('hidden');
+  statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+  statusText.textContent = 'LIVE';
+  statusText.className = 'text-emerald-400 font-bold';
+
+  startMcuExecution();
+  evaluateCircuit();
+}
+
 function stopSimulation() {
   isRunning = false;
+  stopCodeTimers();
+  gpioStates = {};
   btnStop.classList.add('hidden');
   btnRun.classList.remove('hidden');
   statusDot.className = 'w-2 h-2 rounded-full bg-slate-500';
@@ -483,7 +617,7 @@ function renderLogs(logs) {
     .map(l => `<div class="${colorMap[l.type] || 'text-slate-300'}">[${l.time}] ${l.message}</div>`)
     .join('');
 
-  consoleLogEl.innerHTML
+  consoleLogEl.innerHTML = html || '<div class="text-slate-500">No events.</div>';
   mobileLogEl.innerHTML = html || '<div class="text-slate-500">Ready.</div>';
 }
 
@@ -509,19 +643,19 @@ function updateInspector(inst, state) {
     wires = wires.filter(w => w.from.instanceId !== inst.id && w.to.instanceId !== inst.id);
     selectedInstanceId = null;
     selectedInfoEl.textContent = 'Tap any component to inspect';
-    if (isRunning) runSimulation();
+    if (isRunning) evaluateCircuit();
     else renderWorkspace();
   });
-}
-
-// 8. Built-in Demo Circuit
-function loadDemoCircuit() {
+    }
+// 9. Built-in Demos
+function loadLedDemo() {
   stopSimulation();
   instances = [];
   wires = [];
   idCounter = 1;
   panX = 0;
   panY = 0;
+  zoomLevel = 0.85;
   updateStageTransform();
 
   const bat = spawnComponent('battery_9v', 18, 120);
@@ -539,6 +673,32 @@ function loadDemoCircuit() {
   runSimulation();
 }
 
+function loadPicoBlinkDemo() {
+  stopSimulation();
+  instances = [];
+  wires = [];
+  idCounter = 1;
+  panX = 0;
+  panY = 0;
+  zoomLevel = 0.85;
+  updateStageTransform();
+
+  codePresetEl.value = 'pico_blink';
+  codeEditorEl.value = CODE_PRESETS.pico_blink;
+
+  const pico = spawnComponent('pico_rp2040', 20, 110);
+  const res = spawnComponent('resistor_220', 210, 195);
+  const led = spawnComponent('led_red', 335, 115);
+
+  wires.push(
+    { id: 'w1', from: { instanceId: pico.id, pinId: 'GP15' }, to: { instanceId: led.id, pinId: 'ANODE' }, color: '#22c55e' },
+    { id: 'w2', from: { instanceId: led.id, pinId: 'CATHODE' }, to: { instanceId: res.id, pinId: 'P2' }, color: '#eab308' },
+    { id: 'w3', from: { instanceId: res.id, pinId: 'P1' }, to: { instanceId: pico.id, pinId: 'GND' }, color: '#3b82f6' }
+  );
+
+  runSimulation();
+}
+
 // Event Listeners
 btnRun.addEventListener('click', runSimulation);
 btnStop.addEventListener('click', stopSimulation);
@@ -549,7 +709,26 @@ btnClear.addEventListener('click', () => {
   renderWorkspace();
   appendLog('info', 'Workspace cleared.');
 });
-btnDemo.addEventListener('click', loadDemoCircuit);
+btnDemo.addEventListener('click', loadLedDemo);
+btnPicoDemo.addEventListener('click', loadPicoBlinkDemo);
+
+// Code Drawer Controls
+document.getElementById('btn-toggle-code').addEventListener('click', () => {
+  codeDrawerEl.classList.toggle('hidden');
+});
+document.getElementById('btn-close-code').addEventListener('click', () => {
+  codeDrawerEl.classList.add('hidden');
+});
+document.getElementById('btn-code-run').addEventListener('click', () => {
+  runSimulation();
+});
+document.getElementById('btn-clear-serial').addEventListener('click', () => {
+  serialOutputEl.innerHTML = '';
+});
+codePresetEl.addEventListener('change', e => {
+  codeEditorEl.value = CODE_PRESETS[e.target.value] || '';
+  if (isRunning) runSimulation();
+});
 
 document.querySelectorAll('.wire-color-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -567,6 +746,6 @@ document.getElementById('close-palette').addEventListener('click', () => {
 });
 document.getElementById('search-comp').addEventListener('input', e => renderPalette(e.target.value));
 
-// Initialize
+// Initialize with Pico Blink Demo
 renderPalette();
-loadDemoCircuit();
+loadPicoBlinkDemo();
