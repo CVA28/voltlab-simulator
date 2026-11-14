@@ -12,11 +12,14 @@ let selectedInstanceId = null;
 let isRunning = false;
 let idCounter = 1;
 let zoomLevel = 1.0;
+let panX = 0;
+let panY = 0;
 
 // DOM Elements
 const componentListEl = document.getElementById('component-list');
 const componentLayerEl = document.getElementById('component-layer');
 const wireLayerEl = document.getElementById('wire-layer');
+const canvasContainerEl = document.getElementById('canvas-container');
 const zoomStageEl = document.getElementById('zoom-stage');
 const btnZoomIn = document.getElementById('btn-zoom-in');
 const btnZoomOut = document.getElementById('btn-zoom-out');
@@ -32,16 +35,51 @@ const mobileLogEl = document.getElementById('mobile-log');
 const mobileReadingsEl = document.getElementById('mobile-readings');
 const selectedInfoEl = document.getElementById('selected-info');
 
-// Zoom Controls
+// Apply Pan + Zoom Transform
+function updateStageTransform() {
+  zoomStageEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+  btnZoomReset.textContent = `${Math.round(zoomLevel * 100)}%`;
+}
+
 function setZoom(newZoom) {
   zoomLevel = Math.min(1.6, Math.max(0.5, Number(newZoom.toFixed(2))));
-  zoomStageEl.style.transform = `scale(${zoomLevel})`;
-  btnZoomReset.textContent = `${Math.round(zoomLevel * 100)}%`;
+  updateStageTransform();
 }
 
 btnZoomIn.addEventListener('click', () => setZoom(zoomLevel + 0.15));
 btnZoomOut.addEventListener('click', () => setZoom(zoomLevel - 0.15));
-btnZoomReset.addEventListener('click', () => setZoom(1.0));
+btnZoomReset.addEventListener('click', () => {
+  zoomLevel = 1.0;
+  panX = 0;
+  panY = 0;
+  updateStageTransform();
+});
+
+// Single-Finger Drag on Empty Grid to Pan Around
+canvasContainerEl.addEventListener('pointerdown', e => {
+  // Only pan if touching background grid directly (not a component, pin, wire, or toolbar button)
+  if (e.target.closest('.circuit-node') || e.target.closest('.wire-hit') || e.target.closest('button')) {
+    return;
+  }
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const origPanX = panX;
+  const origPanY = panY;
+
+  const onMove = moveEv => {
+    panX = origPanX + (moveEv.clientX - startX);
+    panY = origPanY + (moveEv.clientY - startY);
+    updateStageTransform();
+  };
+
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+  };
+
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+});
 
 // 1. Render Left Component Palette
 function renderPalette(filter = '') {
@@ -59,7 +97,7 @@ function renderPalette(filter = '') {
         <span class="text-cyan-400 text-lg font-bold">+</span>
       `;
       card.addEventListener('click', () => {
-        spawnComponent(comp.type, 60 + Math.random() * 100, 90 + Math.random() * 120);
+        spawnComponent(comp.type, (-panX + 70) / zoomLevel, (-panY + 110) / zoomLevel);
         document.getElementById('palette-drawer').classList.add('-translate-x-full');
       });
       componentListEl.appendChild(card);
@@ -131,7 +169,7 @@ function getComponentGraphic(inst, state) {
 
   if (inst.type === 'switch_toggle') {
     return `
-      <div data-action="toggle-switch" class="w-full h-full rounded-lg bg-slate-800 border-2 ${inst.closed ? 'border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.4)]' : 'border-slate-600'} flex flex-col items-center justify-center p-1.5 cursor-pointer">
+      <div class="w-full h-full rounded-lg bg-slate-800 border-2 ${inst.closed ? 'border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.4)]' : 'border-slate-600'} flex flex-col items-center justify-center p-1.5 cursor-pointer">
         <div class="text-[9px] font-bold text-slate-400">SWITCH</div>
         <div class="mt-1 px-2 py-0.5 rounded text-[10px] font-bold ${inst.closed ? 'bg-emerald-500 text-slate-950' : 'bg-slate-700 text-slate-300'}">
           ${inst.closed ? 'CLOSED' : 'OPEN'}
@@ -194,7 +232,7 @@ function renderWorkspace(simResult = null) {
       el.appendChild(pinEl);
     });
 
-    // Dragging & Tapping Component (scaled by zoomLevel)
+    // Dragging & Tapping Component
     let startX, startY, origX, origY, moved = false;
 
     el.addEventListener('pointerdown', e => {
@@ -212,7 +250,8 @@ function renderWorkspace(simResult = null) {
       const onPointerMove = moveEvent => {
         const dx = (moveEvent.clientX - startX) / zoomLevel;
         const dy = (moveEvent.clientY - startY) / zoomLevel;
-        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+        if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
+        if (!moved) return;
         inst.x = Math.max(10, Math.round(origX + dx));
         inst.y = Math.max(10, Math.round(origY + dy));
         el.style.left = `${inst.x}px`;
@@ -228,7 +267,7 @@ function renderWorkspace(simResult = null) {
           inst.closed = !inst.closed;
           if (isRunning) runSimulation();
           else renderWorkspace();
-        } else {
+        } else if (moved) {
           renderWorkspace(simResult);
         }
       };
@@ -313,22 +352,26 @@ function renderWires(simResult = null) {
       visiblePath.classList.add('wire-energized');
     }
 
-    // Invisible 24px wide touch hitbox for easy finger tapping
+    // Invisible 28px wide touch hitbox
     const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hitPath.setAttribute('d', d);
     hitPath.setAttribute('fill', 'none');
-    hitPath.setAttribute('stroke', 'transparent');
-    hitPath.setAttribute('stroke-width', '24');
+    hitPath.setAttribute('stroke', 'rgba(255,255,255,0.001)');
+    hitPath.setAttribute('stroke-width', '28');
+    hitPath.setAttribute('class', 'wire-hit');
     hitPath.style.cursor = 'pointer';
     hitPath.style.pointerEvents = 'stroke';
 
-    hitPath.addEventListener('pointerdown', e => {
+    const deleteWire = e => {
       e.stopPropagation();
       wires = wires.filter(item => item.id !== w.id);
       appendLog('warn', 'Wire removed.');
       if (isRunning) runSimulation();
       else renderWorkspace();
-    });
+    };
+
+    hitPath.addEventListener('pointerdown', deleteWire);
+    hitPath.addEventListener('click', deleteWire);
 
     wireLayerEl.appendChild(visiblePath);
     wireLayerEl.appendChild(hitPath);
@@ -420,6 +463,9 @@ function loadDemoCircuit() {
   instances = [];
   wires = [];
   idCounter = 1;
+  panX = 0;
+  panY = 0;
+  updateStageTransform();
 
   const bat = spawnComponent('battery_9v', 25, 110);
   const sw = spawnComponent('switch_toggle', 175, 75, { closed: true });
@@ -469,4 +515,3 @@ document.getElementById('search-comp').addEventListener('input', e => renderPale
 // Initialize
 renderPalette();
 loadDemoCircuit();
-                         
