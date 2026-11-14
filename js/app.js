@@ -18,86 +18,48 @@ let gpioStates = {};
 let codeTimers = [];
 
 const CODE_PRESETS = {
-  pico_blink: `# Raspberry Pi Pico — MicroPython Blink
-from machine import Pin
-import time
-
-led = Pin(15, Pin.OUT)
-
-while True:
-    led.value(1)
-    print("GP15 -> HIGH (3.3V)")
-    time.sleep(0.8)
-    led.value(0)
-    print("GP15 -> LOW (0.0V)")
-    time.sleep(0.8)`,
-
-  pico_sos: `# Raspberry Pi Pico — Fast Pulse
-from machine import Pin
-import time
-
-led = Pin(15, Pin.OUT)
-
-while True:
-    led.value(1)
-    print("PULSE ON!")
-    time.sleep(0.3)
-    led.value(0)
-    print("PULSE OFF")
-    time.sleep(0.3)`,
-
-  arduino_blink: `// Arduino Uno R3 — Blink Sketch
-void setup() {
-  Serial.begin(115200);
-  pinMode(13, OUTPUT);
-}
-
-void loop() {
-  digitalWrite(13, HIGH);
-  Serial.println("D13 -> HIGH (5.0V)");
-  delay(800);
-  digitalWrite(13, LOW);
-  Serial.println("D13 -> LOW (0.0V)");
-  delay(800);
-}`
+  pico_blink: `# Raspberry Pi Pico — MicroPython Blink\nfrom machine import Pin\nimport time\n\nled = Pin(15, Pin.OUT)\n\nwhile True:\n    led.value(1)\n    time.sleep(0.8)\n    led.value(0)\n    time.sleep(0.8)`,
+  pico_sos: `# Raspberry Pi Pico — Fast Pulse\nfrom machine import Pin\nimport time\n\nled = Pin(15, Pin.OUT)\n\nwhile True:\n    led.value(1)\n    time.sleep(0.3)\n    led.value(0)\n    time.sleep(0.3)`,
+  arduino_blink: `// Arduino Uno R3 — Blink\nvoid setup() {\n  pinMode(13, OUTPUT);\n}\nvoid loop() {\n  digitalWrite(13, HIGH);\n  delay(800);\n  digitalWrite(13, LOW);\n  delay(800);\n}`
 };
 
-const componentListEl = document.getElementById('component-list');
-const componentLayerEl = document.getElementById('component-layer');
-const wireLayerEl = document.getElementById('wire-layer');
-const canvasContainerEl = document.getElementById('canvas-container');
-const zoomStageEl = document.getElementById('zoom-stage');
-const btnZoomReset = document.getElementById('btn-zoom-reset');
-const btnRun = document.getElementById('btn-run');
-const btnStop = document.getElementById('btn-stop');
-const statusDot = document.getElementById('status-dot');
-const statusText = document.getElementById('status-text');
-const consoleLogEl = document.getElementById('console-log');
-const mobileLogEl = document.getElementById('mobile-log');
-const mobileReadingsEl = document.getElementById('mobile-readings');
-const selectedInfoEl = document.getElementById('selected-info');
-const codeDrawerEl = document.getElementById('code-drawer');
-const codeEditorEl = document.getElementById('code-editor');
-const codePresetEl = document.getElementById('code-preset');
-const serialOutputEl = document.getElementById('serial-output');
+const $ = id => document.getElementById(id);
+const componentListEl = $('component-list');
+const componentLayerEl = $('component-layer');
+const wireLayerEl = $('wire-layer');
+const canvasContainerEl = $('canvas-container');
+const zoomStageEl = $('zoom-stage');
+const btnZoomReset = $('btn-zoom-reset');
+const btnRun = $('btn-run');
+const btnStop = $('btn-stop');
+const statusDot = $('status-dot');
+const statusText = $('status-text');
+const consoleLogEl = $('console-log');
+const mobileLogEl = $('mobile-log');
+const mobileReadingsEl = $('mobile-readings');
+const selectedInfoEl = $('selected-info');
+const codeDrawerEl = $('code-drawer');
+const codeEditorEl = $('code-editor');
+const codePresetEl = $('code-preset');
+const serialOutputEl = $('serial-output');
 
-codeEditorEl.value = CODE_PRESETS.pico_blink;
+if (codeEditorEl) codeEditorEl.value = CODE_PRESETS.pico_blink;
 
 function updateStageTransform() {
-  zoomStageEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
-  btnZoomReset.textContent = `${Math.round(zoomLevel * 100)}%`;
+  if (zoomStageEl) zoomStageEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+  if (btnZoomReset) btnZoomReset.textContent = `${Math.round(zoomLevel * 100)}%`;
 }
 
-function setZoom(newZoom) {
-  zoomLevel = Math.min(1.5, Math.max(0.5, Number(newZoom.toFixed(2))));
+function setZoom(z) {
+  zoomLevel = Math.min(1.5, Math.max(0.5, Number(z.toFixed(2))));
   updateStageTransform();
 }
 
-document.getElementById('btn-zoom-in').addEventListener('click', () => setZoom(zoomLevel + 0.15));
-document.getElementById('btn-zoom-out').addEventListener('click', () => setZoom(zoomLevel - 0.15));
-btnZoomReset.addEventListener('click', () => { zoomLevel = 0.85; panX = 0; panY = 0; updateStageTransform(); });
+$('btn-zoom-in')?.addEventListener('click', () => setZoom(zoomLevel + 0.15));
+$('btn-zoom-out')?.addEventListener('click', () => setZoom(zoomLevel - 0.15));
+btnZoomReset?.addEventListener('click', () => { zoomLevel = 0.85; panX = 0; panY = 0; updateStageTransform(); });
 
-canvasContainerEl.addEventListener('pointerdown', e => {
+canvasContainerEl?.addEventListener('pointerdown', e => {
   if (e.target.closest('.circuit-node') || e.target.closest('.wire-hit') || e.target.closest('button')) return;
   if (pendingPin) { pendingPin = null; appendLog('info', 'Pin cancelled.'); renderWorkspace(); }
   const startX = e.clientX, startY = e.clientY, origPanX = panX, origPanY = panY;
@@ -108,6 +70,7 @@ canvasContainerEl.addEventListener('pointerdown', e => {
 });
 
 function renderPalette(filter = '') {
+  if (!componentListEl) return;
   componentListEl.innerHTML = '';
   Object.values(COMPONENT_CATALOG)
     .filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
@@ -117,7 +80,7 @@ function renderPalette(filter = '') {
       card.innerHTML = `<div><div class="text-xs font-bold text-slate-100">${comp.name}</div><div class="text-[10px] text-slate-400">${comp.category}</div></div><span class="text-cyan-400 text-lg font-bold">+</span>`;
       card.addEventListener('click', () => {
         spawnComponent(comp.type, (-panX + 70) / zoomLevel, (-panY + 110) / zoomLevel);
-        document.getElementById('palette-drawer').classList.add('-translate-x-full');
+        $('palette-drawer')?.classList.add('-translate-x-full');
       });
       componentListEl.appendChild(card);
     });
@@ -133,6 +96,7 @@ function spawnComponent(type, x, y, extra = {}) {
 }
 
 function renderWorkspace(simResult = null) {
+  if (!componentLayerEl) return;
   componentLayerEl.innerHTML = '';
   instances.forEach(inst => {
     const spec = COMPONENT_CATALOG[inst.type];
@@ -156,7 +120,7 @@ function renderWorkspace(simResult = null) {
       if (e.target.classList.contains('pin-dot')) return;
       e.stopPropagation();
       selectedInstanceId = inst.id;
-      updateInspector(inst, state);
+      updateInspector(inst);
       startX = e.clientX; startY = e.clientY; origX = inst.x; origY = inst.y; moved = false;
 
       const onMove = ev => {
@@ -196,6 +160,7 @@ function handlePinClick(instanceId, pinId) {
 }
 
 function renderWires(simResult = null) {
+  if (!wireLayerEl) return;
   wireLayerEl.innerHTML = '';
   wires.forEach(w => {
     const f = instances.find(i => i.id === w.from.instanceId), t = instances.find(i => i.id === w.to.instanceId);
@@ -228,6 +193,7 @@ function renderWires(simResult = null) {
 function stopCodeTimers() { codeTimers.forEach(t => clearInterval(t)); codeTimers = []; }
 
 function appendSerial(msg) {
+  if (!serialOutputEl) return;
   const line = document.createElement('div');
   line.textContent = `> ${msg}`;
   serialOutputEl.appendChild(line);
@@ -236,7 +202,7 @@ function appendSerial(msg) {
 
 function startMcuExecution() {
   stopCodeTimers();
-  const code = codeEditorEl.value;
+  const code = codeEditorEl?.value || '';
   const mcus = instances.filter(i => i.type === 'pico_rp2040' || i.type === 'arduino_uno');
   if (mcus.length === 0) return;
   const sleepMatch = code.match(/time\.sleep\(([\d.]+)\)/);
@@ -246,7 +212,7 @@ function startMcuExecution() {
   const pinNum = pinMatch ? pinMatch[1] : '15';
 
   let toggleState = true;
-  serialOutputEl.innerHTML = '';
+  if (serialOutputEl) serialOutputEl.innerHTML = '';
   appendSerial('Firmware running...');
   const tick = () => {
     mcus.forEach(mcu => {
@@ -267,38 +233,42 @@ function evaluateCircuit() {
   renderWorkspace(result);
   renderLogs(result.logs);
   const activeLed = Object.values(result.componentStates).find(s => s.lit);
-  mobileReadingsEl.textContent = result.shortCircuit ? 'SHORT CIRCUIT!' : activeLed ? `${activeLed.voltage}V | ${activeLed.currentMa}mA` : '0.00V | 0.0mA';
+  if (mobileReadingsEl) {
+    mobileReadingsEl.textContent = result.shortCircuit ? 'SHORT CIRCUIT!' : activeLed ? `${activeLed.voltage}V | ${activeLed.currentMa}mA` : '0.00V | 0.0mA';
+  }
 }
 
 function runSimulation() {
   isRunning = true;
-  btnRun.classList.add('hidden'); btnStop.classList.remove('hidden');
-  statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
-  statusText.textContent = 'LIVE';
+  btnRun?.classList.add('hidden'); btnStop?.classList.remove('hidden');
+  if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+  if (statusText) statusText.textContent = 'LIVE';
   startMcuExecution();
   evaluateCircuit();
 }
 
 function stopSimulation() {
   isRunning = false; stopCodeTimers(); gpioStates = {};
-  btnStop.classList.add('hidden'); btnRun.classList.remove('hidden');
-  statusDot.className = 'w-2 h-2 rounded-full bg-slate-500';
-  statusText.textContent = 'STOPPED';
+  btnStop?.classList.add('hidden'); btnRun?.classList.remove('hidden');
+  if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-slate-500';
+  if (statusText) statusText.textContent = 'STOPPED';
   renderWorkspace(null);
 }
 
 function renderLogs(logs) {
   const colors = { error: 'text-rose-400', warn: 'text-amber-300', success: 'text-emerald-400', info: 'text-cyan-300' };
   const html = logs.map(l => `<div class="${colors[l.type] || 'text-slate-300'}">[${l.time}] ${l.message}</div>`).join('');
-  consoleLogEl.innerHTML = html; mobileLogEl.innerHTML = html;
+  if (consoleLogEl) consoleLogEl.innerHTML = html;
+  if (mobileLogEl) mobileLogEl.innerHTML = html;
 }
 
 function appendLog(type, message) { renderLogs([{ type, message, time: new Date().toLocaleTimeString() }]); }
 
-function updateInspector(inst, state) {
+function updateInspector(inst) {
+  if (!selectedInfoEl) return;
   const spec = COMPONENT_CATALOG[inst.type];
   selectedInfoEl.innerHTML = `<div class="font-bold text-cyan-300">${spec.name}</div><div class="text-slate-400 text-[11px]">${spec.description}</div><button id="btn-del-comp" class="mt-2 w-full py-1 rounded bg-rose-500/20 border border-rose-500/50 text-rose-300 text-[11px]">Delete</button>`;
-  document.getElementById('btn-del-comp')?.addEventListener('click', () => {
+  $('btn-del-comp')?.addEventListener('click', () => {
     instances = instances.filter(i => i.id !== inst.id);
     wires = wires.filter(w => w.from.instanceId !== inst.id && w.to.instanceId !== inst.id);
     isRunning ? evaluateCircuit() : renderWorkspace();
@@ -322,7 +292,8 @@ function loadLedDemo() {
 
 function loadPicoBlinkDemo() {
   stopSimulation(); instances = []; wires = []; idCounter = 1; panX = 0; panY = 0; zoomLevel = 0.85; updateStageTransform();
-  codePresetEl.value = 'pico_blink'; codeEditorEl.value = CODE_PRESETS.pico_blink;
+  if (codePresetEl) codePresetEl.value = 'pico_blink';
+  if (codeEditorEl) codeEditorEl.value = CODE_PRESETS.pico_blink;
   const pico = spawnComponent('pico_rp2040', 20, 110);
   const res = spawnComponent('resistor_220', 210, 195);
   const led = spawnComponent('led_red', 335, 115);
@@ -334,16 +305,16 @@ function loadPicoBlinkDemo() {
   runSimulation();
 }
 
-btnRun.addEventListener('click', runSimulation);
-btnStop.addEventListener('click', stopSimulation);
-btnClear.addEventListener('click', () => { stopSimulation(); instances = []; wires = []; renderWorkspace(); appendLog('info', 'Workspace cleared.'); });
-btnDemo.addEventListener('click', loadLedDemo);
-btnPicoDemo.addEventListener('click', loadPicoBlinkDemo);
-document.getElementById('btn-toggle-code').addEventListener('click', () => codeDrawerEl.classList.toggle('hidden'));
-document.getElementById('btn-close-code').addEventListener('click', () => codeDrawerEl.classList.add('hidden'));
-document.getElementById('btn-code-run').addEventListener('click', runSimulation);
-document.getElementById('btn-clear-serial').addEventListener('click', () => { serialOutputEl.innerHTML = ''; });
-codePresetEl.addEventListener('change', e => { codeEditorEl.value = CODE_PRESETS[e.target.value] || ''; if (isRunning) runSimulation(); });
+btnRun?.addEventListener('click', runSimulation);
+btnStop?.addEventListener('click', stopSimulation);
+$('btn-clear')?.addEventListener('click', () => { stopSimulation(); instances = []; wires = []; renderWorkspace(); appendLog('info', 'Workspace cleared.'); });
+$('btn-demo')?.addEventListener('click', loadLedDemo);
+$('btn-pico-demo')?.addEventListener('click', loadPicoBlinkDemo);
+$('btn-toggle-code')?.addEventListener('click', () => codeDrawerEl?.classList.toggle('hidden'));
+$('btn-close-code')?.addEventListener('click', () => codeDrawerEl?.classList.add('hidden'));
+$('btn-code-run')?.addEventListener('click', runSimulation);
+$('btn-clear-serial')?.addEventListener('click', () => { if (serialOutputEl) serialOutputEl.innerHTML = ''; });
+codePresetEl?.addEventListener('change', e => { if (codeEditorEl) codeEditorEl.value = CODE_PRESETS[e.target.value] || ''; if (isRunning) runSimulation(); });
 
 document.querySelectorAll('.wire-color-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -353,10 +324,10 @@ document.querySelectorAll('.wire-color-btn').forEach(btn => {
   });
 });
 
-document.getElementById('open-palette').addEventListener('click', () => document.getElementById('palette-drawer').classList.remove('-translate-x-full'));
-document.getElementById('close-palette').addEventListener('click', () => document.getElementById('palette-drawer').classList.add('-translate-x-full'));
-document.getElementById('search-comp').addEventListener('input', e => renderPalette(e.target.value));
+$('open-palette')?.addEventListener('click', () => $('palette-drawer')?.classList.remove('-translate-x-full'));
+$('close-palette')?.addEventListener('click', () => $('palette-drawer')?.classList.add('-translate-x-full'));
+$('search-comp')?.addEventListener('input', e => renderPalette(e.target.value));
 
 renderPalette();
 loadPicoBlinkDemo();
-      
+        
