@@ -219,5 +219,4 @@ export class SimulationEngine {
 
     return results;
   }
-          }
-      
+              }
