@@ -13,7 +13,7 @@
 .circuit-node {
   position: absolute;
   cursor: grab;
-  transition: box-shadow 0.2s ease, transform 0.05s linear;
+  transition: box-shadow 0.2s ease;
 }
 .circuit-node:active {
   cursor: grabbing;
@@ -53,7 +53,7 @@
   filter: drop-shadow(0 0 6px currentColor);
 }
 
-/* Blown Component Shake & Smoke Effect */
+/* Blown Component Shake Effect */
 @keyframes shakeError {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-4px); }
@@ -63,4 +63,3 @@
   animation: shakeError 0.3s ease-in-out 2;
   filter: grayscale(0.7) brightness(0.6);
 }
-
