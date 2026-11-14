@@ -482,7 +482,8 @@ function renderWires(simResult = null) {
     visiblePath.setAttribute('fill', 'none');
     visiblePath.setAttribute('stroke', w.color);
     visiblePath.setAttribute('stroke-width', '4'
-                             visiblePath.setAttribute('stroke-linecap', 'round');
+    visiblePath.setAttribute('stroke-width', '4');
+    visiblePath.setAttribute('stroke-linecap', 'round');
     visiblePath.style.pointerEvents = 'none';
 
     if (isRunning && simResult?.activeWires?.has(w.id)) {
@@ -646,7 +647,8 @@ function updateInspector(inst, state) {
     if (isRunning) evaluateCircuit();
     else renderWorkspace();
   });
-    }
+}
+
 // 9. Built-in Demos
 function loadLedDemo() {
   stopSimulation();
