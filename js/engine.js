@@ -111,15 +111,17 @@ export class SimulationEngine {
     // 3. Find Power Sources (9V Batteries and active 3.3V Regulators)
     const powerSources = [];
 
-    instances.filter(i => i.type === 'battery_9v').forEach(bat => {
+        instances.filter(i => i.type === 'battery_9v' || i.type === 'battery_1v5').forEach(bat => {
+      const spec = COMPONENT_CATALOG[bat.type];
       powerSources.push({
         id: bat.id,
-        name: '9V Battery',
+        name: spec.name,
         vccNode: `${bat.id}:VCC`,
         gndNode: `${bat.id}:GND`,
-        voltage: 9.0
+        voltage: spec.voltage
       });
     });
+    
 
     // Check if any 3.3V Regulator is properly powered by a battery
     instances.filter(i => i.type === 'regulator_3v3').forEach(reg => {
@@ -169,7 +171,8 @@ export class SimulationEngine {
     }
 
     // 5. Evaluate All LEDs
-    const leds = instances.filter(i => i.type.startsWith('led_'));
+        const leds = instances.filter(i => i.type.startsWith('led_') || i.type === 'bulb_lamp');
+    
     leds.forEach(led => {
       const spec = COMPONENT_CATALOG[led.type];
       const anode = `${led.id}:ANODE`;
