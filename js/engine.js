@@ -9,7 +9,7 @@ export class SimulationEngine {
     this.logs.push({ type, message, time: new Date().toLocaleTimeString() });
   }
 
-  evaluate(instances, wires) {
+  evaluate(instances, wires, gpioStates = {}) {
     this.logs = [];
     const results = {
       valid: true,
@@ -26,7 +26,8 @@ export class SimulationEngine {
         blown: false,
         voltage: 0,
         currentMa: 0,
-        status: 'IDLE'
+        status: 'IDLE',
+        pinStates: gpioStates[inst.id] || {}
       };
     });
 
@@ -98,6 +99,7 @@ export class SimulationEngine {
 
     const powerSources = [];
 
+    // 1. Batteries
     instances.filter(i => i.type === 'battery_9v' || i.type === 'battery_1v5').forEach(bat => {
       const spec = COMPONENT_CATALOG[bat.type];
       powerSources.push({
@@ -109,6 +111,37 @@ export class SimulationEngine {
       });
     });
 
+    // 2. Microcontrollers (Pico 3.3V & Arduino 5.0V + Active HIGH GPIO Pins)
+    instances.filter(i => i.type === 'pico_rp2040' || i.type === 'arduino_uno').forEach(mcu => {
+      const spec = COMPONENT_CATALOG[mcu.type];
+      const pins = gpioStates[mcu.id] || {};
+      results.componentStates[mcu.id].status = 'MCU RUNNING';
+
+      // Always-on power rail pin (3V3 or 5V)
+      const railPin = mcu.type === 'pico_rp2040' ? '3V3' : '5V';
+      powerSources.push({
+        id: mcu.id,
+        name: `${spec.name} (${railPin})`,
+        vccNode: `${mcu.id}:${railPin}`,
+        gndNode: `${mcu.id}:GND`,
+        voltage: spec.logicVoltage
+      });
+
+      // Active HIGH GPIO Pins driven by user code
+      Object.entries(pins).forEach(([pinId, isHigh]) => {
+        if (isHigh) {
+          powerSources.push({
+            id: mcu.id,
+            name: `${spec.name} [${pinId}=HIGH]`,
+            vccNode: `${mcu.id}:${pinId}`,
+            gndNode: `${mcu.id}:GND`,
+            voltage: spec.logicVoltage
+          });
+        }
+      });
+    });
+
+    // 3. Voltage Regulators
     instances.filter(i => i.type === 'regulator_3v3').forEach(reg => {
       const regGndPin = `${reg.id}:GND`;
       const regVinPin = `${reg.id}:VIN`;
@@ -127,7 +160,6 @@ export class SimulationEngine {
       if (powered) {
         results.componentStates[reg.id].status = 'REGULATING 3.3V';
         results.componentStates[reg.id].voltage = 3.3;
-        this.log('info', '3.3V Regulator active (stepping down to 3.3V DC).');
         powerSources.push({
           id: reg.id,
           name: '3.3V Regulator',
@@ -139,21 +171,23 @@ export class SimulationEngine {
     });
 
     if (powerSources.length === 0) {
-      this.log('warn', 'No power source detected. Add a Battery.');
+      this.log('warn', 'No power source or microcontroller found.');
       return results;
     }
 
+    // 4. Short Circuit Check
     for (const src of powerSources) {
       const shorts = tracePaths(src.vccNode, src.gndNode).filter(p => p.resistance === 0);
       if (shorts.length > 0) {
         results.valid = false;
         results.shortCircuit = true;
         shorts[0].wireIds.forEach(id => results.activeWires.add(id));
-        this.log('error', `CRITICAL SHORT CIRCUIT across ${src.name}! Remove direct VCC-to-GND wire.`);
+        this.log('error', `CRITICAL SHORT CIRCUIT on ${src.name}!`);
         return results;
       }
     }
 
+    // 5. Evaluate LEDs & Lamps
     const outputs = instances.filter(i => i.type.startsWith('led_') || i.type === 'bulb_lamp');
     outputs.forEach(out => {
       const spec = COMPONENT_CATALOG[out.type];
@@ -174,7 +208,6 @@ export class SimulationEngine {
           negPaths[0].wireIds.forEach(id => results.activeWires.add(id));
 
           if (vDiff <= 0) {
-            this.log('warn', `${spec.name}: Supply (${src.voltage}V) below forward voltage (${spec.forwardVoltage}V).`);
             results.componentStates[out.id].status = 'UNDERVOLTAGE';
           } else if (out.type !== 'bulb_lamp' && totalR === 0 && src.voltage > spec.forwardVoltage + 0.3) {
             results.componentStates[out.id] = {
@@ -185,38 +218,31 @@ export class SimulationEngine {
               currentMa: 999,
               status: 'BLOWN (NO RESISTOR)'
             };
-            this.log('error', `💥 ${spec.name} BURNED OUT! ${src.voltage}V connected without a resistor.`);
+            this.log('error', `💥 ${spec.name} BURNED OUT! ${src.voltage}V without a resistor.`);
           } else {
             const effectiveR = Math.max(totalR, out.type === 'bulb_lamp' ? 15 : 10);
             const currentMa = ((vDiff / effectiveR) * 1000).toFixed(1);
-            const brightness = Math.min(1, Math.max(0.25, currentMa / 20));
 
             results.componentStates[out.id] = {
               lit: true,
-              brightness,
+              brightness: 1,
               blown: false,
               voltage: spec.forwardVoltage,
               currentMa: parseFloat(currentMa),
               status: `ON (${currentMa} mA)`
             };
-            this.log('success', `✅ ${spec.name} LIT! Current: ${currentMa} mA (Series R: ${totalR}Ω)`);
+            this.log('success', `✅ ${spec.name} LIT via ${src.name} (${currentMa} mA)`);
           }
           break;
-        }
-
-        const revPos = tracePaths(src.vccNode, cathode);
-        const revNeg = tracePaths(anode, src.gndNode);
-        if (revPos.length > 0 && revNeg.length > 0 && out.type !== 'bulb_lamp') {
-          this.log('warn', `⚠️ Reverse Polarity on ${spec.name}! Swap Anode (+) and Cathode (-).`);
-          results.componentStates[out.id].status = 'REVERSE POLARITY';
         }
       }
 
       if (!energized && results.componentStates[out.id].status === 'IDLE') {
-        this.log('info', `${spec.name}: Open circuit (check wires or tap switch).`);
+        this.log('info', `${spec.name}: Waiting for HIGH signal or closed switch.`);
       }
     });
 
     return results;
   }
-              }
+  }
+          
