@@ -122,7 +122,6 @@ function getComponentGraphic(inst, state) {
   const isLit = state?.lit;
   const isBlown = state?.blown;
 
-  // Realistic 9V PP3 Battery
   if (inst.type === 'battery_9v') {
     return `
       <svg viewBox="0 0 130 76" class="w-full h-full drop-shadow-xl overflow-visible">
@@ -138,12 +137,9 @@ function getComponentGraphic(inst, state) {
             <stop offset="100%" stop-color="#92400e"/>
           </linearGradient>
         </defs>
-        <!-- Metallic Snap Terminals -->
         <rect x="114" y="17" width="14" height="14" rx="3" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>
         <polygon points="114,45 128,43 128,61 114,59" fill="#94a3b8" stroke="#475569" stroke-width="1.5"/>
-        <!-- Main Battery Casing -->
         <rect x="4" y="6" width="112" height="64" rx="8" fill="url(#bat9Body)" stroke="#334155" stroke-width="2"/>
-        <!-- Copper/Gold Top Band -->
         <path d="M 86 6 H 108 A 8 8 0 0 1 116 14 V 62 A 8 8 0 0 1 108 70 H 86 Z" fill="url(#bat9Cap)"/>
         <text x="14" y="34" fill="#fbbf24" font-family="monospace" font-weight="900" font-size="16">9V</text>
         <text x="14" y="52" fill="#e2e8f0" font-family="sans-serif" font-weight="800" font-size="11" letter-spacing="1">DURAVOLT</text>
@@ -153,7 +149,6 @@ function getComponentGraphic(inst, state) {
     `;
   }
 
-  // Realistic Cylindrical 1.5V AA Cell
   if (inst.type === 'battery_1v5') {
     return `
       <svg viewBox="0 0 140 54" class="w-full h-full drop-shadow-xl overflow-visible">
@@ -164,13 +159,9 @@ function getComponentGraphic(inst, state) {
             <stop offset="100%" stop-color="#020617"/>
           </linearGradient>
         </defs>
-        <!-- Negative Flat Cap -->
         <rect x="2" y="10" width="8" height="34" rx="2" fill="#94a3b8"/>
-        <!-- Positive Nub Terminal -->
         <rect x="130" y="17" width="9" height="20" rx="3" fill="#e2e8f0"/>
-        <!-- Cylindrical Shell -->
         <rect x="8" y="6" width="124" height="42" rx="6" fill="url(#aaBody)" stroke="#475569" stroke-width="1.5"/>
-        <!-- Copper Positive Band -->
         <rect x="94" y="6" width="36" height="42" rx="4" fill="#d97706"/>
         <text x="48" y="32" fill="#f8fafc" font-family="monospace" font-weight="800" font-size="14">1.5 V</text>
         <text x="108" y="33" fill="#451a03" font-weight="900" font-size="16">+</text>
@@ -179,26 +170,20 @@ function getComponentGraphic(inst, state) {
     `;
   }
 
-  // Realistic AMS1117 3.3V Voltage Regulator PCB Module
   if (inst.type === 'regulator_3v3') {
     const active = state?.status === 'REGULATING 3.3V';
     return `
       <svg viewBox="0 0 132 82" class="w-full h-full drop-shadow-xl overflow-visible">
-        <!-- Green/Blue PCB -->
         <rect x="4" y="4" width="124" height="74" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="2"/>
-        <!-- Mounting Holes -->
         <circle cx="14" cy="14" r="3" fill="#020617" stroke="#fbbf24" stroke-width="1.5"/>
         <circle cx="118" cy="14" r="3" fill="#020617" stroke="#fbbf24" stroke-width="1.5"/>
-        <!-- SOT-223 Voltage Regulator IC -->
         <rect x="46" y="22" width="40" height="34" rx="3" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
         <rect x="54" y="14" width="24" height="8" fill="#cbd5e1"/>
         <rect x="50" y="56" width="6" height="8" fill="#cbd5e1"/>
         <rect x="63" y="56" width="6" height="8" fill="#cbd5e1"/>
         <rect x="76" y="56" width="6" height="8" fill="#cbd5e1"/>
-        <!-- SMD Capacitors -->
         <rect x="26" y="30" width="10" height="18" rx="1" fill="#b45309" stroke="#fde68a" stroke-width="1"/>
         <rect x="96" y="30" width="10" height="18" rx="1" fill="#b45309" stroke="#fde68a" stroke-width="1"/>
-        <!-- Onboard Power LED -->
         <circle cx="105" cy="64" r="4" fill="${active ? '#22c55e' : '#14532d'}" style="${active ? 'filter: drop-shadow(0 0 6px #22c55e);' : ''}"/>
         <text x="48" y="42" fill="#e2e8f0" font-family="monospace" font-size="8" font-weight="bold">AMS1117</text>
         <text x="42" y="72" fill="#a7f3d0" font-family="monospace" font-size="9" font-weight="bold">3.3V OUT</text>
@@ -206,15 +191,11 @@ function getComponentGraphic(inst, state) {
     `;
   }
 
-  // Realistic Carbon-Film Axial Resistor
   if (inst.type === 'resistor_220') {
     return `
       <svg viewBox="0 0 130 46" class="w-full h-full drop-shadow-md overflow-visible">
-        <!-- Metal Leads -->
         <line x1="0" y1="23" x2="130" y2="23" stroke="#cbd5e1" stroke-width="4"/>
-        <!-- Dog-bone Beige Ceramic Body -->
         <rect x="28" y="10" width="74" height="26" rx="10" fill="#fde68a" stroke="#b45309" stroke-width="1.5"/>
-        <!-- Color Bands: Red (2), Red (2), Brown (x10), Gold (5%) -->
         <rect x="40" y="10" width="6" height="26" fill="#dc2626"/>
         <rect x="53" y="10" width="6" height="26" fill="#dc2626"/>
         <rect x="66" y="10" width="6" height="26" fill="#78350f"/>
@@ -224,20 +205,15 @@ function getComponentGraphic(inst, state) {
     `;
   }
 
-  // Animated Mechanical Copper Knife Switch
   if (inst.type === 'switch_toggle') {
     const bladeAngle = inst.closed ? 0 : -34;
     return `
       <svg viewBox="0 0 124 68" class="w-full h-full drop-shadow-xl overflow-visible cursor-pointer">
-        <!-- Wooden/Bakelite Base -->
         <rect x="8" y="34" width="108" height="26" rx="5" fill="#451a03" stroke="#92400e" stroke-width="2"/>
-        <!-- Brass Contact Posts -->
         <rect x="18" y="28" width="14" height="16" rx="2" fill="#f59e0b"/>
         <rect x="92" y="28" width="14" height="16" rx="2" fill="#f59e0b"/>
-        <!-- Animated Pivoting Copper Blade -->
         <g style="transform-origin: 25px 32px; transform: rotate(${bladeAngle}deg); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);">
           <rect x="23" y="28" width="84" height="7" rx="2" fill="#fbbf24" stroke="#b45309" stroke-width="1"/>
-          <!-- Insulated Black Handle -->
           <rect x="96" y="24" width="22" height="14" rx="5" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
         </g>
         <text x="42" y="52" fill="${inst.closed ? '#4ade80' : '#fbbf24'}" font-family="monospace" font-size="9" font-weight="bold">
@@ -247,21 +223,16 @@ function getComponentGraphic(inst, state) {
     `;
   }
 
-  // Realistic Glass Filament Bulb
   if (inst.type === 'bulb_lamp') {
     const glowFilter = isLit ? 'filter: drop-shadow(0 0 22px #fbbf24);' : '';
     return `
       <svg viewBox="0 0 105 92" class="w-full h-full overflow-visible" style="${glowFilter}">
-        <!-- Brass Screw Base -->
         <rect x="35" y="54" width="35" height="24" rx="4" fill="#d97706" stroke="#78350f" stroke-width="1.5"/>
         <line x1="35" y1="61" x2="70" y2="61" stroke="#78350f" stroke-width="2"/>
         <line x1="35" y1="69" x2="70" y2="69" stroke="#78350f" stroke-width="2"/>
-        <!-- Wire Leads to Terminals -->
         <polyline points="0,68 35,68" fill="none" stroke="#94a3b8" stroke-width="3"/>
         <polyline points="70,68 105,68" fill="none" stroke="#94a3b8" stroke-width="3"/>
-        <!-- Glass Dome -->
         <circle cx="52.5" cy="32" r="26" fill="${isLit ? 'rgba(254, 240, 138, 0.85)' : 'rgba(148, 163, 184, 0.18)'}" stroke="#cbd5e1" stroke-width="1.8"/>
-        <!-- Internal Support Stems & Tungsten Filament -->
         <line x1="45" y1="54" x2="45" y2="34" stroke="#94a3b8" stroke-width="1.5"/>
         <line x1="60" y1="54" x2="60" y2="34" stroke="#94a3b8" stroke-width="1.5"/>
         <path d="M 45 34 Q 49 24 52.5 34 Q 56 24 60 34" fill="none" stroke="${isLit ? '#ffffff' : '#64748b'}" stroke-width="${isLit ? '3' : '1.8'}"/>
@@ -269,20 +240,15 @@ function getComponentGraphic(inst, state) {
     `;
   }
 
-  // Realistic 5mm Domed LED with Metal Legs & Glow Bloom
   if (inst.type.startsWith('led_')) {
     const color = spec.ledColor;
     const bloom = isLit ? `filter: drop-shadow(0 0 18px ${color});` : '';
     return `
       <svg viewBox="0 0 110 70" class="w-full h-full overflow-visible ${isBlown ? 'component-blown' : ''}" style="${bloom}">
-        <!-- Metal Leads (Bent Anode +, Straight Cathode -) -->
         <polyline points="0,22 24,22 30,27 52,27" fill="none" stroke="#cbd5e1" stroke-width="3.5" stroke-linecap="round"/>
         <line x1="0" y1="48" x2="52" y2="48" stroke="#94a3b8" stroke-width="3.5" stroke-linecap="round"/>
-        <!-- LED Rim Collar -->
         <rect x="48" y="13" width="8" height="44" rx="2" fill="${isBlown ? '#334155' : color}" stroke="#ffffff" stroke-opacity="0.4" stroke-width="1"/>
-        <!-- Domed Epoxy Lens -->
         <path d="M 56 16 H 78 A 19 19 0 0 1 78 54 H 56 Z" fill="${isLit ? color : isBlown ? '#1e293b' : color + '55'}" stroke="${isBlown ? '#ef4444' : '#ffffff'}" stroke-opacity="0.6" stroke-width="1.5"/>
-        <!-- Specular Glass Highlight -->
         <path d="M 62 21 H 76 A 10 10 0 0 1 83 26" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="2.5" stroke-linecap="round"/>
         ${isBlown ? '<text x="64" y="40" font-size="16">💥</text>' : ''}
         <text x="54" y="8" fill="#cbd5e1" font-family="monospace" font-size="10" font-weight="bold">${spec.name.split(' ')[1]} LED</text>
@@ -474,6 +440,31 @@ function runSimulation() {
   isRunning = true;
   btnRun.classList.add('hidden');
   btnStop.classList.remove('hidden');
+  statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+  statusText.textContent = 'LIVE';
+  statusText.className = 'text-emerald-400 font-bold';
+
+  const result = engine.evaluate(instances, wires);
+  renderWorkspace(result);
+  renderLogs(result.logs);
+
+  const activeLed = Object.values(result.componentStates).find(s => s.lit);
+  if (result.shortCircuit) {
+    mobileReadingsEl.textContent = 'SHORT CIRCUIT!';
+    mobileReadingsEl.className = 'text-rose-400 font-bold';
+  } else if (activeLed) {
+    mobileReadingsEl.textContent = `${activeLed.voltage}V | ${activeLed.currentMa}mA`;
+    mobileReadingsEl.className = 'text-emerald-400 font-bold';
+  } else {
+    mobileReadingsEl.textContent = '0.00V | 0.0mA';
+    mobileReadingsEl.className = 'text-slate-400';
+  }
+}
+
+function stopSimulation() {
+  isRunning = false;
+  btnStop.classList.add('hidden');
+  btnRun.classList.remove('hidden');
   statusDot.className = 'w-2 h-2 rounded-full bg-slate-500';
   statusText.textContent = 'STOPPED';
   statusText.className = 'text-slate-300';
@@ -492,7 +483,7 @@ function renderLogs(logs) {
     .map(l => `<div class="${colorMap[l.type] || 'text-slate-300'}">[${l.time}] ${l.message}</div>`)
     .join('');
 
-  consoleLogEl.innerHTML = html || '<div class="text-slate-500">No events.</div>';
+  consoleLogEl.innerHTML
   mobileLogEl.innerHTML = html || '<div class="text-slate-500">Ready.</div>';
 }
 
