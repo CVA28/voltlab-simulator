@@ -1,46 +1,47 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VoltLab — Virtual Electronics & IoT Studio</title>
+  <title>VoltLab Studio — Virtual Hardware & Embedded Simulator</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen w-screen overflow-hidden flex flex-col select-none font-sans">
+<body class="bg-slate-100 text-slate-900 h-screen w-screen overflow-hidden flex flex-col select-none font-sans">
 
   <!-- TOP TOOLBAR -->
-  <header class="h-14 bg-slate-900/95 border-b border-slate-800 px-3 flex items-center justify-between z-30 backdrop-blur-md shrink-0">
+  <header class="h-14 bg-white border-b border-slate-300 px-3 flex items-center justify-between z-30 shadow-sm shrink-0">
     <div class="flex items-center gap-2">
-      <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.4)]">
-        <span class="text-cyan-400 font-bold text-lg">⚡</span>
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow">
+        <span class="text-white font-bold text-base">⚡</span>
       </div>
       <div>
-        <h1 class="font-bold text-sm tracking-wider text-cyan-300">VOLTLAB <span class="text-[10px] bg-emerald-500/20 border border-emerald-400/40 px-1.5 py-0.5 rounded text-emerald-300">PHASE 3</span></h1>
-        <p class="text-[10px] text-slate-400 hidden sm:block">IoT, Sensors & Embedded Simulator</p>
+        <h1 class="font-extrabold text-sm tracking-tight text-slate-800">VOLTLAB <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">PRO UI</span></h1>
+        <p class="text-[10px] text-slate-500 hidden sm:block">Hardware Circuit & Firmware Studio</p>
       </div>
     </div>
 
     <!-- Wire Color Picker -->
-    <div class="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700">
-      <button data-color="#ef4444" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500 ring-2 ring-white scale-110 transition"></button>
-      <button data-color="#3b82f6" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-500 opacity-70 hover:opacity-100 transition"></button>
-      <button data-color="#22c55e" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-green-500 opacity-70 hover:opacity-100 transition"></button>
-      <button data-color="#eab308" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-yellow-400 opacity-70 hover:opacity-100 transition"></button>
+    <div class="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg border border-slate-300">
+      <button data-color="#dc2626" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-600 ring-2 ring-slate-900 scale-110 transition"></button>
+      <button data-color="#1e293b" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-800 opacity-75 hover:opacity-100 transition"></button>
+      <button data-color="#16a34a" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-green-600 opacity-75 hover:opacity-100 transition"></button>
+      <button data-color="#2563eb" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-600 opacity-75 hover:opacity-100 transition"></button>
+      <button data-color="#eab308" class="wire-color-btn w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-yellow-500 opacity-75 hover:opacity-100 transition"></button>
     </div>
 
     <!-- Simulation Controls -->
     <div class="flex items-center gap-1.5">
-      <button id="btn-toggle-code" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/50 text-indigo-200 font-bold text-xs flex items-center gap-1 transition">
+      <button id="btn-toggle-code" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs flex items-center gap-1 transition">
         <span>&lt;/&gt;</span> Code
       </button>
-      <button id="btn-run" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition active:scale-95">
+      <button id="btn-run" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shadow transition active:scale-95">
         <span>▶</span> RUN
       </button>
-      <button id="btn-stop" class="hidden px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center gap-1 shadow-[0_0_15px_rgba(244,63,94,0.5)] transition active:scale-95">
+      <button id="btn-stop" class="hidden px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1 shadow transition active:scale-95">
         <span>■</span> STOP
       </button>
-      <button id="btn-clear" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 transition">
+      <button id="btn-clear" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs text-slate-700 font-semibold transition">
         Clear
       </button>
     </div>
@@ -50,70 +51,70 @@
   <div class="flex-1 flex relative overflow-hidden">
 
     <!-- LEFT COMPONENT PALETTE -->
-    <aside id="palette-drawer" class="w-64 bg-slate-900/95 border-r border-slate-800 flex flex-col z-30 transition-transform duration-300 absolute md:relative h-full -translate-x-full md:translate-x-0">
-      <div class="p-3 border-b border-slate-800 flex justify-between items-center">
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Components</span>
-        <button id="close-palette" class="md:hidden text-slate-400 text-sm px-2">✕</button>
+    <aside id="palette-drawer" class="w-64 bg-white border-r border-slate-300 flex flex-col z-30 transition-transform duration-300 absolute md:relative h-full -translate-x-full md:translate-x-0 shadow-lg md:shadow-none">
+      <div class="p-3 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-600">Parts Library</span>
+        <button id="close-palette" class="md:hidden text-slate-500 text-sm px-2 font-bold">✕</button>
       </div>
-      <div class="p-2">
-        <input id="search-comp" type="text" placeholder="Search OLED, Sensor, Servo..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-400" />
+      <div class="p-2 border-b border-slate-200">
+        <input id="search-comp" type="text" placeholder="Search Arduino, Keypad, LCD..." class="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500" />
       </div>
       <div id="component-list" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
     </aside>
 
-    <!-- CENTER CIRCUIT CANVAS -->
+    <!-- CENTER SCHEMATIC WORKSPACE -->
     <main id="canvas-container" class="flex-1 relative bg-grid overflow-hidden touch-none">
-      <!-- Floating Top-Left Action Buttons -->
-      <div class="absolute top-3 left-3 z-20 flex flex-wrap gap-1.5 max-w-[75%]">
-        <button id="open-palette" class="md:hidden px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-lg backdrop-blur">
+      <!-- Floating Top-Left Project Presets -->
+      <div class="absolute top-3 left-3 z-20 flex flex-wrap gap-1.5 max-w-[76%]">
+        <button id="open-palette" class="md:hidden px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs font-bold shadow-sm">
           + Parts
         </button>
-        <button id="btn-oled-demo" class="px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-cyan-400/50 text-cyan-200 text-xs font-semibold shadow-lg backdrop-blur hover:bg-slate-800">
-          OLED + Sensor Demo
+        <button id="btn-safe-demo" class="px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-sm hover:bg-blue-500">
+          Hotel Safe Demo
         </button>
-        <button id="btn-pico-demo" class="px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-emerald-500/40 text-emerald-300 text-xs font-semibold shadow-lg backdrop-blur hover:bg-slate-800">
-          Pico Blink
+        <button id="btn-oled-demo" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-semibold shadow-sm hover:bg-slate-50">
+          Pico OLED
         </button>
-        <button id="btn-demo" class="px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-purple-500/40 text-purple-300 text-xs font-semibold shadow-lg backdrop-blur hover:bg-slate-800">
-          LED Circuit
+        <button id="btn-demo" class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-semibold shadow-sm hover:bg-slate-50">
+          LED Switch
         </button>
       </div>
 
       <!-- Status Pill -->
-      <div id="sim-badge" class="absolute top-3 right-3 z-20 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-[10px] font-mono flex items-center gap-1.5 backdrop-blur">
-        <span id="status-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
-        <span id="status-text" class="text-slate-300">IDLE</span>
+      <div id="sim-badge" class="absolute top-3 right-3 z-20 px-2.5 py-1 rounded-full bg-white border border-slate-300 text-[10px] font-mono flex items-center gap-1.5 shadow-sm">
+        <span id="status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+        <span id="status-text" class="text-slate-700 font-bold">IDLE</span>
       </div>
 
-      <!-- Floating Interactive Sensor Control Card (Appears when DHT22 Sensor is tapped) -->
-      <div id="sensor-controls" class="hidden absolute bottom-14 left-3 right-3 sm:right-auto sm:w-72 z-20 bg-slate-900/95 border border-cyan-500/50 rounded-xl p-3 shadow-2xl backdrop-blur">
+      <!-- Floating Interactive Sensor Control Card -->
+      <div id="sensor-controls" class="hidden absolute bottom-14 left-3 right-3 sm:right-auto sm:w-72 z-20 bg-white border border-slate-300 rounded-xl p-3 shadow-xl">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-xs font-bold text-cyan-300">🌡️ DHT22 Environment Controls</span>
+          <span class="text-xs font-bold text-slate-800">🌡️ DHT22 Environment</span>
           <button id="btn-close-sensor" class="text-slate-400 text-xs px-1.5">✕</button>
         </div>
         <div class="space-y-2 text-xs">
           <div>
             <div class="flex justify-between text-[11px] mb-0.5">
-              <span class="text-slate-300">Temperature</span>
-              <span id="val-temp" class="font-mono font-bold text-amber-400">28.5 °C</span>
+              <span class="text-slate-600">Temperature</span>
+              <span id="val-temp" class="font-mono font-bold text-amber-600">28.5 °C</span>
             </div>
-            <input id="slider-temp" type="range" min="0" max="50" step="0.5" value="28.5" class="w-full accent-amber-400" />
+            <input id="slider-temp" type="range" min="0" max="50" step="0.5" value="28.5" class="w-full accent-amber-500" />
           </div>
           <div>
             <div class="flex justify-between text-[11px] mb-0.5">
-              <span class="text-slate-300">Humidity</span>
-              <span id="val-hum" class="font-mono font-bold text-cyan-400">62 %</span>
+              <span class="text-slate-600">Humidity</span>
+              <span id="val-hum" class="font-mono font-bold text-blue-600">62 %</span>
             </div>
-            <input id="slider-hum" type="range" min="20" max="95" step="1" value="62" class="w-full accent-cyan-400" />
+            <input id="slider-hum" type="range" min="20" max="95" step="1" value="62" class="w-full accent-blue-600" />
           </div>
         </div>
       </div>
 
-      <!-- Floating Zoom & Pan Reset Controls -->
-      <div class="absolute bottom-3 right-3 z-20 flex items-center bg-slate-900/95 border border-slate-700 rounded-xl shadow-xl backdrop-blur overflow-hidden">
-        <button id="btn-zoom-out" class="px-3 py-2 text-cyan-300 hover:bg-slate-800 active:bg-slate-700 font-bold text-sm border-r border-slate-800">−</button>
-        <button id="btn-zoom-reset" class="px-2.5 py-2 text-[11px] font-mono text-slate-200 hover:bg-slate-800 active:bg-slate-700">80%</button>
-        <button id="btn-zoom-in" class="px-3 py-2 text-cyan-300 hover:bg-slate-800 active:bg-slate-700 font-bold text-sm border-l border-slate-800">+</button>
+      <!-- Floating Zoom & Pan Controls -->
+      <div class="absolute bottom-3 right-3 z-20 flex items-center bg-white border border-slate-300 rounded-xl shadow-md overflow-hidden">
+        <button id="btn-zoom-out" class="px-3 py-2 text-slate-700 hover:bg-slate-100 font-bold text-sm border-r border-slate-200">−</button>
+        <button id="btn-zoom-reset" class="px-2.5 py-2 text-[11px] font-mono font-bold text-slate-700 hover:bg-slate-100">75%</button>
+        <button id="btn-zoom-in" class="px-3 py-2 text-slate-700 hover:bg-slate-100 font-bold text-sm border-l border-slate-200">+</button>
       </div>
 
       <!-- Pan + Zoom Stage -->
@@ -123,23 +124,23 @@
       </div>
 
       <!-- Helper Hint -->
-      <div id="canvas-hint" class="absolute bottom-3 left-3 z-20 text-[10px] text-slate-300 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 pointer-events-none">
-        Tap <span class="text-cyan-400 font-bold">Pin → Pin</span> to wire • Tap <span class="text-amber-400 font-bold">DHT22</span> to adjust temp
+      <div id="canvas-hint" class="absolute bottom-3 left-3 z-20 text-[10px] text-slate-600 bg-white/95 px-2.5 py-1 rounded-lg border border-slate-300 shadow-sm pointer-events-none">
+        Tap <span class="text-blue-600 font-bold">Pin → Pin</span> to wire • Tap <span class="text-rose-600 font-bold">Wire</span> to delete
       </div>
     </main>
 
     <!-- RIGHT INSPECTOR PANEL (Desktop) -->
-    <aside class="w-72 bg-slate-900/95 border-l border-slate-800 hidden lg:flex flex-col z-20 shrink-0">
-      <div class="p-3 border-b border-slate-800">
-        <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">Live Telemetry & Inspector</span>
+    <aside class="w-72 bg-white border-l border-slate-300 hidden lg:flex flex-col z-20 shrink-0">
+      <div class="p-3 border-b border-slate-200 bg-slate-50">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-600">Component Properties</span>
       </div>
       <div id="telemetry-panel" class="p-3 space-y-3 overflow-y-auto flex-1 text-xs">
-        <div class="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700">
-          <div class="text-slate-400 mb-1">Selected Component</div>
-          <div id="selected-info" class="font-mono text-slate-200">Tap any component to inspect</div>
+        <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+          <div class="text-slate-500 mb-1">Selected Part</div>
+          <div id="selected-info" class="font-mono text-slate-800">Tap any component to inspect</div>
         </div>
         <div>
-          <div class="text-slate-400 font-semibold mb-1.5">Circuit Validation Log</div>
+          <div class="text-slate-600 font-semibold mb-1.5">Simulation Console</div>
           <div id="console-log" class="space-y-1.5 font-mono text-[11px]"></div>
         </div>
       </div>
@@ -148,28 +149,27 @@
   </div>
 
   <!-- SLIDE-UP CODE EDITOR & SERIAL MONITOR DRAWER -->
-  <section id="code-drawer" class="hidden h-72 bg-slate-900 border-t-2 border-indigo-500/60 flex flex-col z-30 shrink-0">
+  <section id="code-drawer" class="hidden h-72 bg-slate-900 border-t-2 border-blue-600 flex flex-col z-30 shrink-0">
     <div class="px-3 py-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <span class="text-xs font-bold text-indigo-300">CODE</span>
+        <span class="text-xs font-bold text-blue-400">CODE</span>
         <select id="code-preset" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 focus:outline-none">
-          <option value="pico_oled">Pico — I2C OLED + DHT22 Weather</option>
-          <option value="pico_blink">Pico — MicroPython Blink GP15</option>
-          <option value="pico_servo">Pico — SG90 Servo Sweep (0-180°)</option>
-          <option value="arduino_blink">Arduino C++ — Blink D13</option>
+          <option value="hotel_safe">Arduino C++ — Hotel Safe (Keypad + LCD + Servo)</option>
+          <option value="pico_oled">Pico MicroPython — OLED + DHT22 Weather</option>
+          <option value="pico_blink">Pico MicroPython — Blink GP15</option>
         </select>
       </div>
       <div class="flex items-center gap-2">
-        <button id="btn-code-run" class="px-2.5 py-1 rounded bg-emerald-500 text-slate-950 font-bold text-[11px]">▶ Upload & Run</button>
+        <button id="btn-code-run" class="px-2.5 py-1 rounded bg-emerald-600 text-white font-bold text-[11px]">▶ Upload & Run</button>
         <button id="btn-close-code" class="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs">✕</button>
       </div>
     </div>
 
     <div class="flex-1 flex flex-col sm:flex-row overflow-hidden">
       <textarea id="code-editor" spellcheck="false" class="flex-1 bg-slate-950 text-emerald-300 font-mono text-xs p-3 resize-none focus:outline-none border-b sm:border-b-0 sm:border-r border-slate-800 leading-relaxed"></textarea>
-      <div class="h-28 sm:h-full sm:w-72 bg-black/80 p-2.5 flex flex-col font-mono text-[11px]">
+      <div class="h-28 sm:h-full sm:w-72 bg-black/90 p-2.5 flex flex-col font-mono text-[11px]">
         <div class="flex justify-between items-center text-slate-400 border-b border-slate-800 pb-1 mb-1">
-          <span class="text-[10px] font-bold text-amber-400">SERIAL MONITOR (115200)</span>
+          <span class="text-[10px] font-bold text-amber-400">SERIAL MONITOR</span>
           <button id="btn-clear-serial" class="text-[10px] text-slate-500 hover:text-slate-300">Clear</button>
         </div>
         <div id="serial-output" class="flex-1 overflow-y-auto space-y-1 text-slate-300"></div>
@@ -177,15 +177,15 @@
     </div>
   </section>
 
-  <!-- BOTTOM MOBILE DIAGNOSTICS BAR -->
-  <div id="mobile-console" class="lg:hidden h-24 bg-slate-900 border-t border-slate-800 p-2 overflow-y-auto font-mono text-[11px] z-20 shrink-0">
+  <!-- BOTTOM MOBILE CONSOLE -->
+  <div id="mobile-console" class="lg:hidden h-24 bg-white border-t border-slate-300 p-2 overflow-y-auto font-mono text-[11px] z-20 shrink-0">
     <div class="flex justify-between items-center mb-1">
-      <span class="text-cyan-400 font-bold uppercase text-[10px]">Live Telemetry</span>
-      <span id="mobile-readings" class="text-emerald-400">0.00V | 0.0mA</span>
+      <span class="text-blue-700 font-bold uppercase text-[10px]">Console & Diagnostics</span>
+      <span id="mobile-readings" class="text-emerald-700 font-bold">5.00V | READY</span>
     </div>
-    <div id="mobile-log" class="space-y-1 text-slate-300"></div>
+    <div id="mobile-log" class="space-y-1 text-slate-700"></div>
   </div>
 
-  <script type="module" src="js/app.js?v=7"></script>
+  <script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>
