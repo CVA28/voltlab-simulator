@@ -20,18 +20,11 @@ export class SimulationEngine {
     };
 
     instances.forEach(inst => {
-      results.componentStates[inst.id] = {
-        lit: false,
-        powered: false,
-        blown: false,
-        voltage: 0,
-        currentMa: 0,
-        status: 'IDLE'
-      };
+      results.componentStates[inst.id] = { lit: false, powered: false, blown: false, status: 'IDLE' };
     });
 
     if (instances.length === 0) {
-      this.log('warn', 'Workspace is empty. Add components or load a demo.');
+      this.log('warn', 'Workspace is empty. Load a demo or add parts.');
       return results;
     }
 
@@ -43,9 +36,7 @@ export class SimulationEngine {
       adj.get(b).push({ node: a, wireId });
     };
 
-    wires.forEach(w => {
-      addEdge(`${w.from.instanceId}:${w.from.pinId}`, `${w.to.instanceId}:${w.to.pinId}`, w.id);
-    });
+    wires.forEach(w => addEdge(`${w.from.instanceId}:${w.from.pinId}`, `${w.to.instanceId}:${w.to.pinId}`, w.id));
 
     instances.forEach(inst => {
       if (inst.type === 'switch_toggle' && inst.closed) addEdge(`${inst.id}:IN`, `${inst.id}:OUT`, null);
@@ -77,7 +68,6 @@ export class SimulationEngine {
     };
 
     const powerSources = [];
-
     instances.filter(i => i.type === 'battery_9v').forEach(bat => {
       powerSources.push({ id: bat.id, name: '9V Battery', vccNode: `${bat.id}:VCC`, gndNode: `${bat.id}:GND`, voltage: 9.0 });
     });
@@ -86,11 +76,9 @@ export class SimulationEngine {
       const spec = COMPONENT_CATALOG[mcu.type];
       const railPin = mcu.type === 'pico_rp2040' ? '3V3' : '5V';
       results.componentStates[mcu.id].status = 'MCU RUNNING';
-      powerSources.push({ id: mcu.id, name: `${spec.name} (${railPin})`, vccNode: `${mcu.id}:${railPin}`, gndNode: `${mcu.id}:GND`, voltage: spec.logicVoltage });
+      powerSources.push({ id: mcu.id, name: spec.name, vccNode: `${mcu.id}:${railPin}`, gndNode: `${mcu.id}:GND`, voltage: spec.logicVoltage });
       Object.entries(gpioStates[mcu.id] || {}).forEach(([pinId, isHigh]) => {
-        if (isHigh) {
-          powerSources.push({ id: mcu.id, name: `${spec.name} [${pinId}]`, vccNode: `${mcu.id}:${pinId}`, gndNode: `${mcu.id}:GND`, voltage: spec.logicVoltage });
-        }
+        if (isHigh) powerSources.push({ id: mcu.id, name: `${spec.name} [${pinId}]`, vccNode: `${mcu.id}:${pinId}`, gndNode: `${mcu.id}:GND`, voltage: spec.logicVoltage });
       });
     });
 
@@ -106,7 +94,40 @@ export class SimulationEngine {
       }
     }
 
-    // Evaluate DHT22 Sensor
+    // Evaluate 16x2 LCD Display
+    instances.filter(i => i.type === 'lcd_16x2').forEach(lcd => {
+      for (const src of powerSources) {
+        const vccP = tracePaths(src.vccNode, `${lcd.id}:VCC`);
+        const gndP = tracePaths(`${lcd.id}:GND`, src.gndNode);
+        if (vccP.length > 0 && gndP.length > 0) {
+          vccP[0].wireIds.forEach(id => results.activeWires.add(id));
+          gndP[0].wireIds.forEach(id => results.activeWires.add(id));
+          const sdaP = tracePaths(`${src.id}:A4`, `${lcd.id}:SDA`).concat(tracePaths(`${src.id}:GP14`, `${lcd.id}:SDA`));
+          const sclP = tracePaths(`${src.id}:A5`, `${lcd.id}:SCL`).concat(tracePaths(`${src.id}:GP15`, `${lcd.id}:SCL`));
+          if (sdaP.length > 0 && sclP.length > 0) {
+            sdaP[0].wireIds.forEach(id => results.activeWires.add(id));
+            sclP[0].wireIds.forEach(id => results.activeWires.add(id));
+            results.componentStates[lcd.id] = {
+              powered: true,
+              lcdLine1: mcuState.lcdLine1 || 'Code to Lock',
+              lcdLine2: mcuState.lcdLine2 || '',
+              status: 'LCD1602 ACTIVE'
+            };
+            this.log('success', `📟 16x2 LCD active: "${mcuState.lcdLine1 || 'Code to Lock'}"`);
+          } else {
+            this.log('warn', '⚠️ 16x2 LCD has power, connect SDA & SCL.');
+          }
+          break;
+        }
+      }
+    });
+
+    // Evaluate Keypad connections
+    instances.filter(i => i.type === 'keypad_4x4').forEach(kp => {
+      wires.filter(w => w.from.instanceId === kp.id || w.to.instanceId === kp.id).forEach(w => results.activeWires.add(w.id));
+    });
+
+    // Evaluate DHT22 & OLED
     let activeSensorData = null;
     instances.filter(i => i.type === 'dht22_sensor').forEach(dht => {
       for (const src of powerSources) {
@@ -115,54 +136,31 @@ export class SimulationEngine {
         if (vccP.length > 0 && gndP.length > 0) {
           vccP[0].wireIds.forEach(id => results.activeWires.add(id));
           gndP[0].wireIds.forEach(id => results.activeWires.add(id));
-          const temp = dht.temp ?? 28.5;
-          const hum = dht.hum ?? 62;
-          activeSensorData = { temp, hum };
-          results.componentStates[dht.id] = { powered: true, status: `${temp}°C | ${hum}%` };
-          this.log('info', `🌡️ DHT22 Sensor active: ${temp}°C, ${hum}% RH`);
+          activeSensorData = { temp: dht.temp ?? 28.5, hum: dht.hum ?? 62 };
+          results.componentStates[dht.id] = { powered: true };
           break;
         }
       }
     });
 
-    // Evaluate SSD1306 I2C OLED Display
     instances.filter(i => i.type === 'oled_ssd1306').forEach(oled => {
-      let powered = false;
-      let i2cReady = false;
       for (const src of powerSources) {
         const vccP = tracePaths(src.vccNode, `${oled.id}:VCC`);
         const gndP = tracePaths(`${oled.id}:GND`, src.gndNode);
-        if (vccP.length > 0 && gndP.length > 0) {
-          powered = true;
-          vccP[0].wireIds.forEach(id => results.activeWires.add(id));
-          gndP[0].wireIds.forEach(id => results.activeWires.add(id));
-
-          // Check SCL & SDA connections to Pico (GP15/GP14) or Arduino (D13/D12)
-          const sclP = tracePaths(`${src.id}:GP15`, `${oled.id}:SCL`).concat(tracePaths(`${src.id}:D13`, `${oled.id}:SCL`));
-          const sdaP = tracePaths(`${src.id}:GP14`, `${oled.id}:SDA`).concat(tracePaths(`${src.id}:D12`, `${oled.id}:SDA`));
-          if (sclP.length > 0 && sdaP.length > 0) {
-            i2cReady = true;
-            sclP[0].wireIds.forEach(id => results.activeWires.add(id));
-            sdaP[0].wireIds.forEach(id => results.activeWires.add(id));
-          }
+        const sclP = tracePaths(`${src.id}:GP15`, `${oled.id}:SCL`);
+        const sdaP = tracePaths(`${src.id}:GP14`, `${oled.id}:SDA`);
+        if (vccP.length > 0 && gndP.length > 0 && sclP.length > 0 && sdaP.length > 0) {
+          [vccP[0], gndP[0], sclP[0], sdaP[0]].forEach(p => p.wireIds.forEach(id => results.activeWires.add(id)));
+          const lines = activeSensorData
+            ? [`TEMP: ${activeSensorData.temp} C`, `HUM : ${activeSensorData.hum} %`, 'I2C 0x3C OK']
+            : ['VOLTLAB OS', 'I2C ACTIVE'];
+          results.componentStates[oled.id] = { powered: true, oledLines: lines };
           break;
         }
       }
-
-      if (powered && i2cReady) {
-        const lines = activeSensorData
-          ? [`TEMP: ${activeSensorData.temp} C`, `HUM : ${activeSensorData.hum} %`, mcuState.oledText || 'I2C 0x3C OK']
-          : [mcuState.oledText || 'HELLO VOLTLAB!', 'I2C ADDR: 0x3C', 'STATUS: ACTIVE'];
-        const barWidth = activeSensorData ? Math.min(96, Math.round((activeSensorData.temp / 50) * 96)) : 72;
-        results.componentStates[oled.id] = { powered: true, oledLines: lines, barWidth, status: 'I2C DISPLAY ON' };
-        this.log('success', '🖥️ OLED 128x64 active over I2C (SCL/SDA validated).');
-      } else if (powered) {
-        results.componentStates[oled.id] = { powered: false, status: 'MISSING SCL/SDA' };
-        this.log('warn', '⚠️ OLED has power, but SCL/SDA wires to Pico GP15/GP14 are missing.');
-      }
     });
 
-    // Evaluate Servo & Buzzer
+    // Evaluate Servo
     instances.filter(i => i.type === 'servo_sg90').forEach(srv => {
       for (const src of powerSources) {
         const vccP = tracePaths(src.vccNode, `${srv.id}:VCC`);
@@ -170,23 +168,9 @@ export class SimulationEngine {
         if (vccP.length > 0 && gndP.length > 0) {
           vccP[0].wireIds.forEach(id => results.activeWires.add(id));
           gndP[0].wireIds.forEach(id => results.activeWires.add(id));
-          const angle = mcuState.servoAngle ?? 90;
-          results.componentStates[srv.id] = { powered: true, servoAngle: angle, status: `ANGLE: ${angle}°` };
-          this.log('success', `⚙️ SG90 Servo positioned at ${angle}°.`);
-          break;
-        }
-      }
-    });
-
-    instances.filter(i => i.type === 'buzzer_piezo').forEach(buz => {
-      for (const src of powerSources) {
-        const posP = tracePaths(src.vccNode, `${buz.id}:POS`);
-        const negP = tracePaths(`${buz.id}:NEG`, src.gndNode);
-        if (posP.length > 0 && negP.length > 0) {
-          posP[0].wireIds.forEach(id => results.activeWires.add(id));
-          negP[0].wireIds.forEach(id => results.activeWires.add(id));
-          results.componentStates[buz.id] = { lit: true, status: 'BUZZING' };
-          this.log('success', `🔊 Piezo Buzzer active via ${src.name}!`);
+          wires.filter(w => w.from.instanceId === srv.id || w.to.instanceId === srv.id).forEach(w => results.activeWires.add(w.id));
+          const angle = mcuState.servoAngle ?? 0;
+          results.componentStates[srv.id] = { powered: true, servoAngle: angle };
           break;
         }
       }
@@ -204,12 +188,12 @@ export class SimulationEngine {
           posPaths[0].wireIds.forEach(id => results.activeWires.add(id));
           negPaths[0].wireIds.forEach(id => results.activeWires.add(id));
           if (totalR === 0 && src.voltage > spec.forwardVoltage + 0.3) {
-            results.componentStates[out.id] = { lit: false, blown: true, status: 'BLOWN (NO RESISTOR)' };
+            results.componentStates[out.id] = { lit: false, blown: true };
             this.log('error', `💥 ${spec.name} BURNED OUT! ${src.voltage}V without a resistor.`);
           } else if (vDiff > 0) {
             const currentMa = ((vDiff / Math.max(totalR, 10)) * 1000).toFixed(1);
-            results.componentStates[out.id] = { lit: true, voltage: spec.forwardVoltage, currentMa: parseFloat(currentMa), status: `ON (${currentMa} mA)` };
-            this.log('success', `✅ ${spec.name} LIT via ${src.name} (${currentMa} mA)`);
+            results.componentStates[out.id] = { lit: true, voltage: spec.forwardVoltage, currentMa: parseFloat(currentMa) };
+            this.log('success', `✅ ${spec.name} LIT (${currentMa} mA)`);
           }
           break;
         }
@@ -218,5 +202,5 @@ export class SimulationEngine {
 
     return results;
   }
-      }
-        
+              }
+              
